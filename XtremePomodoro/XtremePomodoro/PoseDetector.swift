@@ -53,7 +53,7 @@ struct DetectedPose {
         let hipY = (leftHip.y + rightHip.y) / 2
         let shoulderY = (leftShoulder.y + rightShoulder.y) / 2
         let torsoHeight = abs(shoulderY - hipY)
-        let tolerance = torsoHeight * 0.4 // 40% of torso height tolerance
+        let tolerance = torsoHeight * 0.6 // 60% of torso height tolerance (generous)
 
         let leftWristNearHip = abs(leftWrist.y - leftHip.y) < tolerance
         let rightWristNearHip = abs(rightWrist.y - rightHip.y) < tolerance
@@ -61,7 +61,7 @@ struct DetectedPose {
         // Wrists should be spread apart (near the sides, not together)
         let shoulderWidth = abs(leftShoulder.x - rightShoulder.x)
         let wristSpread = abs(leftWrist.x - rightWrist.x)
-        let wristsSpreadApart = wristSpread > shoulderWidth * 0.5
+        let wristsSpreadApart = wristSpread > shoulderWidth * 0.4 // Relaxed from 0.5
 
         return leftWristNearHip && rightWristNearHip && wristsSpreadApart
     }
@@ -149,6 +149,7 @@ class PoseDetector: ObservableObject {
     private var highestHipYInRep: CGFloat = 0.0 // Track highest point during stand (closer to standingHipY = better)
     @Published var lastRepScore: Int = 0        // Score 0-100 for last rep
     @Published var repScores: [Int] = []        // All rep scores
+    private var sittingPhotoCaptured: Bool = false // Track if sitting photo was captured for current rep
 
     // Callback for rep completion with score
     var onRepCompleted: ((Int, Int) -> Void)?   // (repNumber, score)
@@ -264,6 +265,23 @@ class PoseDetector: ObservableObject {
         NSSound.beep()
     }
 
+    /// Check if speech is currently playing
+    var isSpeaking: Bool {
+        speechSynthesizer.isSpeaking
+    }
+
+    /// Speak text after any current speech finishes
+    func speakAfterCurrent(_ text: String, checkInterval: TimeInterval = 0.2) {
+        if speechSynthesizer.isSpeaking {
+            // Poll until current speech finishes
+            DispatchQueue.main.asyncAfter(deadline: .now() + checkInterval) { [weak self] in
+                self?.speakAfterCurrent(text, checkInterval: checkInterval)
+            }
+        } else {
+            speechSynthesizer.startSpeaking(text)
+        }
+    }
+
     // MARK: - Calibration
 
     func startCalibration() {
@@ -353,6 +371,7 @@ class PoseDetector: ObservableObject {
             standingHipY = hipY
             calibrationState = .calibrated
             isCalibrated = true
+            saveCalibration() // Explicitly save after isCalibrated is true
             calibrationMessage = "Calibration complete!"
             speak("Calibration complete! You can now start your exercise")
             resetGestureState()
@@ -478,6 +497,7 @@ class PoseDetector: ObservableObject {
                 // Reset tracking for new rep
                 lowestHipYInRep = currentHipY
                 highestHipYInRep = currentHipY
+                sittingPhotoCaptured = false
             }
 
         case .goingDown:
@@ -506,8 +526,11 @@ class PoseDetector: ObservableObject {
                     // Held long enough - sitting confirmed!
                     exerciseState = .sitting
                     playBeep() // Audio feedback for reaching sitting position
-                    // Capture sitting photo (for the upcoming rep)
-                    onCapturePhoto?(exerciseCount + 1, "sitting")
+                    // Capture sitting photo only once per rep
+                    if !sittingPhotoCaptured {
+                        onCapturePhoto?(exerciseCount + 1, "sitting")
+                        sittingPhotoCaptured = true
+                    }
                 }
             } else {
                 // Left sitting zone before hold completed - go back to goingDown
@@ -607,6 +630,7 @@ class PoseDetector: ObservableObject {
         repScores.removeAll()
         lowestHipYInRep = 1.0
         highestHipYInRep = 0.0
+        sittingPhotoCaptured = false
     }
 
     func setExercise(_ exercise: ExerciseType) {

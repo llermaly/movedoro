@@ -18,6 +18,14 @@
 		AAA000009 /* PoseDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA000025 /* PoseDetector.swift */; };
 		AAA00000A /* SessionPhotoManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA000026 /* SessionPhotoManager.swift */; };
 		AAA00000B /* SessionGalleryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA000027 /* SessionGalleryView.swift */; };
+		AAA00000C /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA000028 /* AppState.swift */; };
+		AAA00000D /* PomodoroTimer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA000029 /* PomodoroTimer.swift */; };
+		AAA00000E /* PomodoroView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA00002A /* PomodoroView.swift */; };
+		AAA00000F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA00002B /* SettingsView.swift */; };
+		AAA000010A /* ExerciseOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA00002C /* ExerciseOverlayView.swift */; };
+		AAA000011A /* AdvancedSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA00002D /* AdvancedSettingsView.swift */; };
+		AAA000012A /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA00002E /* OnboardingView.swift */; };
+		AAA000013A /* ExerciseWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA00002F /* ExerciseWindowController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -52,6 +60,14 @@
 		AAA000025 /* PoseDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoseDetector.swift; sourceTree = "<group>"; };
 		AAA000026 /* SessionPhotoManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionPhotoManager.swift; sourceTree = "<group>"; };
 		AAA000027 /* SessionGalleryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionGalleryView.swift; sourceTree = "<group>"; };
+		AAA000028 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		AAA000029 /* PomodoroTimer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PomodoroTimer.swift; sourceTree = "<group>"; };
+		AAA00002A /* PomodoroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PomodoroView.swift; sourceTree = "<group>"; };
+		AAA00002B /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		AAA00002C /* ExerciseOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseOverlayView.swift; sourceTree = "<group>"; };
+		AAA00002D /* AdvancedSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedSettingsView.swift; sourceTree = "<group>"; };
+		AAA00002E /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		AAA00002F /* ExerciseWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseWindowController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -78,6 +94,14 @@
 			isa = PBXGroup;
 			children = (
 				AAA000010 /* XtremePomodoroApp.swift */,
+				AAA000028 /* AppState.swift */,
+				AAA000029 /* PomodoroTimer.swift */,
+				AAA00002A /* PomodoroView.swift */,
+				AAA00002B /* SettingsView.swift */,
+				AAA00002C /* ExerciseOverlayView.swift */,
+				AAA00002D /* AdvancedSettingsView.swift */,
+				AAA00002E /* OnboardingView.swift */,
+				AAA00002F /* ExerciseWindowController.swift */,
 				AAA000011 /* ContentView.swift */,
 				AAA000023 /* OBSBOTManager.swift */,
 				AAA000024 /* CameraCapture.swift */,
@@ -217,6 +241,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				AAA000001 /* XtremePomodoroApp.swift in Sources */,
+				AAA00000C /* AppState.swift in Sources */,
+				AAA00000D /* PomodoroTimer.swift in Sources */,
+				AAA00000E /* PomodoroView.swift in Sources */,
+				AAA00000F /* SettingsView.swift in Sources */,
+				AAA000010A /* ExerciseOverlayView.swift in Sources */,
+				AAA000011A /* AdvancedSettingsView.swift in Sources */,
+				AAA000012A /* OnboardingView.swift in Sources */,
+				AAA000013A /* ExerciseWindowController.swift in Sources */,
 				AAA000002 /* ContentView.swift in Sources */,
 				AAA000007 /* OBSBOTManager.swift in Sources */,
 				AAA000008 /* CameraCapture.swift in Sources */,
