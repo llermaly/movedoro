@@ -1,6 +1,6 @@
 //
 //  OBSBOTWrapper.h
-//  XtremePomodoro
+//  OBSBOTCameraControl
 //
 //  Objective-C wrapper for the OBSBOT C++ SDK
 //  This allows Swift to interact with the C++ library
@@ -58,8 +58,51 @@ typedef void (^OBSBOTDeviceChangedCallback)(NSString *deviceSN, BOOL connected);
 - (void)setZoom:(float)level;
 
 /// Set field of view
-/// @param fovType 0=Wide(86°), 1=Medium(78°), 2=Narrow(65°)
+/// @param fovType 0=Wide(86), 1=Medium(78), 2=Narrow(65)
 - (void)setFov:(int32_t)fovType;
+
+#pragma mark - Focus Control
+
+/// Set auto focus mode
+/// @param focusMode 0=Auto, 1=Continuous AF, 2=Single AF, 3=Manual
+- (void)setAutoFocusMode:(int32_t)focusMode;
+
+/// Get current auto focus mode
+/// @return 0=Auto, 1=Continuous AF, 2=Single AF, 3=Manual, -1=error
+- (int32_t)getAutoFocusMode;
+
+/// Set manual focus position (0-100)
+- (void)setManualFocusPosition:(int32_t)position;
+
+/// Get current manual focus position
+- (int32_t)getManualFocusPosition;
+
+/// Enable or disable face focus
+- (void)setFaceFocus:(BOOL)enable;
+
+#pragma mark - HDR Control
+
+/// Enable or disable HDR
+- (void)setHDR:(BOOL)enable;
+
+/// Get current HDR state
+- (BOOL)getHDR;
+
+#pragma mark - White Balance
+
+/// Set white balance mode
+/// @param wbType 0=Auto, 1=Daylight, 2=Fluorescent, 3=Tungsten, 255=Manual
+/// @param manualValue Manual color temperature (only used when wbType=255)
+- (void)setWhiteBalance:(int32_t)wbType manualValue:(int32_t)manualValue;
+
+/// Get current white balance type
+- (int32_t)getWhiteBalanceType;
+
+#pragma mark - Media Mode
+
+/// Set media mode
+/// @param mode 0=Normal, 1=Virtual Background, 2=Auto Frame
+- (void)setMediaMode:(int32_t)mode;
 
 #pragma mark - Presets
 

@@ -4,7 +4,6 @@ import AVFoundation
 /// First-time setup wizard
 struct OnboardingView: View {
     @EnvironmentObject var appState: AppState
-    @EnvironmentObject var cameraManager: OBSBOTManager
 
     @State private var currentStep: Int = 0
     @StateObject private var cameraCapture = CameraCapture()
@@ -613,5 +612,4 @@ struct QuickPresetButton: View {
 #Preview {
     OnboardingView()
         .environmentObject(AppState())
-        .environmentObject(OBSBOTManager())
 }

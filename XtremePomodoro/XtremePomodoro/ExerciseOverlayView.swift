@@ -4,7 +4,6 @@ import AVFoundation
 /// Fullscreen exercise overlay that blocks the screen during breaks
 struct ExerciseOverlayView: View {
     @EnvironmentObject var appState: AppState
-    @EnvironmentObject var cameraManager: OBSBOTManager
     @StateObject private var cameraCapture = CameraCapture()
     @StateObject private var poseDetector = PoseDetector()
     @StateObject private var photoManager = SessionPhotoManager()
@@ -12,6 +11,7 @@ struct ExerciseOverlayView: View {
     @State private var showPoseOverlay = true
     @State private var isSettingUp = true
     @State private var hasAnnouncedCompletion = false
+    @State private var showDebugInfo = false
 
     var repsRequired: Int { appState.repsRequired }
     var repsCompleted: Int { poseDetector.exerciseCount }
@@ -248,21 +248,32 @@ struct ExerciseOverlayView: View {
 
                 Spacer()
 
-                // DEBUG: Skip button
+                // DEBUG: Skip button and debug info
                 #if DEBUG
-                HStack {
-                    Button(action: { completeExercise() }) {
-                        Label("DEBUG: Skip Exercise", systemImage: "forward.end.fill")
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.orange)
-
-                    if !cameraCapture.isCapturing {
-                        Button(action: { startCamera() }) {
-                            Label("DEBUG: Force Start Camera", systemImage: "camera")
+                VStack(spacing: 12) {
+                    HStack {
+                        Button(action: { completeExercise() }) {
+                            Label("Skip", systemImage: "forward.end.fill")
                         }
                         .buttonStyle(.bordered)
-                        .tint(.blue)
+                        .tint(.orange)
+
+                        if !cameraCapture.isCapturing {
+                            Button(action: { startCamera() }) {
+                                Label("Force Camera", systemImage: "camera")
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.blue)
+                        }
+
+                        Toggle("Debug", isOn: $showDebugInfo)
+                            .toggleStyle(.button)
+                            .tint(.purple)
+                    }
+
+                    // Debug calibration panel
+                    if showDebugInfo {
+                        calibrationDebugView
                     }
                 }
                 .padding(.bottom, 20)
@@ -318,11 +329,6 @@ struct ExerciseOverlayView: View {
         // Start photo session
         photoManager.startSession()
 
-        // Move camera to exercise preset if OBSBOT connected
-        if cameraManager.isConnected {
-            cameraManager.moveToPreset(id: 2) // Exercise preset
-        }
-
         // Start camera with slight delay to ensure view is ready
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             startCamera()
@@ -338,12 +344,6 @@ struct ExerciseOverlayView: View {
 
     private func completeExercise() {
         cameraCapture.stopCapture()
-
-        // Move camera back to meeting preset
-        if cameraManager.isConnected {
-            cameraManager.moveToPreset(id: 1) // Meeting preset
-        }
-
         appState.completeExercise()
     }
 
@@ -365,10 +365,122 @@ struct ExerciseOverlayView: View {
         default: return .red
         }
     }
+
+    // MARK: - Debug View
+
+    #if DEBUG
+    private var calibrationDebugView: some View {
+        let currentHipY = poseDetector.currentPose?.hipY
+        let positionPercent = poseDetector.currentPose.flatMap { poseDetector.getPositionPercent($0) }
+        let inSitting = poseDetector.currentPose.map { poseDetector.isInSittingZone($0) } ?? false
+        let inStanding = poseDetector.currentPose.map { poseDetector.isInStandingZone($0) } ?? false
+
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("CALIBRATION DEBUG")
+                .font(.headline)
+                .foregroundColor(.yellow)
+
+            HStack(spacing: 20) {
+                // Calibration status
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Circle()
+                            .fill(poseDetector.isCalibrated ? Color.green : Color.red)
+                            .frame(width: 10, height: 10)
+                        Text("Calibrated: \(poseDetector.isCalibrated ? "YES" : "NO")")
+                    }
+                    Text("State: \(String(describing: poseDetector.calibrationState))")
+                        .font(.caption)
+                }
+
+                Divider().frame(height: 50)
+
+                // Calibrated values
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Sit Y: \(String(format: "%.4f", poseDetector.sittingHipY))")
+                    Text("Stand Y: \(String(format: "%.4f", poseDetector.standingHipY))")
+                    Text("Range: \(String(format: "%.4f", poseDetector.standingHipY - poseDetector.sittingHipY))")
+                }
+
+                Divider().frame(height: 50)
+
+                // Current position
+                VStack(alignment: .leading, spacing: 4) {
+                    if let hipY = currentHipY {
+                        Text("Current Y: \(String(format: "%.4f", hipY))")
+                            .fontWeight(.bold)
+                    } else {
+                        Text("Current Y: --")
+                    }
+
+                    if let percent = positionPercent {
+                        // Visual progress bar
+                        HStack {
+                            Text("Pos:")
+                            GeometryReader { geo in
+                                ZStack(alignment: .leading) {
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(Color.gray.opacity(0.3))
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(percent > 50 ? Color.green : Color.blue)
+                                        .frame(width: geo.size.width * CGFloat(percent / 100))
+                                }
+                            }
+                            .frame(width: 100, height: 12)
+                            Text("\(Int(percent))%")
+                        }
+                    }
+                }
+
+                Divider().frame(height: 50)
+
+                // Zone status
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Circle()
+                            .fill(inSitting ? Color.blue : Color.gray.opacity(0.3))
+                            .frame(width: 14, height: 14)
+                        Text("In Sit Zone")
+                            .foregroundColor(inSitting ? .blue : .gray)
+                    }
+                    HStack {
+                        Circle()
+                            .fill(inStanding ? Color.green : Color.gray.opacity(0.3))
+                            .frame(width: 14, height: 14)
+                        Text("In Stand Zone")
+                            .foregroundColor(inStanding ? .green : .gray)
+                    }
+                }
+
+                Divider().frame(height: 50)
+
+                // Exercise state
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Exercise: \(poseDetector.currentExercise.rawValue)")
+                    HStack {
+                        Circle()
+                            .fill(stateColor(for: poseDetector.exerciseState))
+                            .frame(width: 10, height: 10)
+                        Text("State: \(poseDetector.exerciseState.rawValue)")
+                            .fontWeight(.bold)
+                    }
+                }
+            }
+            .font(.system(size: 12, design: .monospaced))
+        }
+        .padding()
+        .background(Color.black.opacity(0.8))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.yellow.opacity(0.5), lineWidth: 1)
+        )
+        .foregroundColor(.white)
+    }
+    #endif
 }
 
 #Preview {
     ExerciseOverlayView()
         .environmentObject(AppState())
-        .environmentObject(OBSBOTManager())
 }

@@ -5,7 +5,6 @@ import AppKit
 class ExerciseWindowController: NSObject, ObservableObject {
     private var window: NSPanel?
     private var appState: AppState?
-    private var cameraManager: OBSBOTManager?
 
     static let shared = ExerciseWindowController()
 
@@ -14,14 +13,12 @@ class ExerciseWindowController: NSObject, ObservableObject {
     }
 
     /// Show the fullscreen exercise overlay
-    func showExerciseWindow(appState: AppState, cameraManager: OBSBOTManager) {
+    func showExerciseWindow(appState: AppState) {
         self.appState = appState
-        self.cameraManager = cameraManager
 
         // Create the SwiftUI view
         let exerciseView = ExerciseOverlayView()
             .environmentObject(appState)
-            .environmentObject(cameraManager)
 
         // Create hosting view
         let hostingView = NSHostingView(rootView: exerciseView)
@@ -89,7 +86,6 @@ class ExerciseWindowController: NSObject, ObservableObject {
 
         // Clear references
         appState = nil
-        cameraManager = nil
     }
 
     // MARK: - Keyboard Monitoring

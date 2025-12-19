@@ -1,6 +1,6 @@
 //
 //  OBSBOTWrapper.mm
-//  XtremePomodoro
+//  OBSBOTCameraControl
 //
 //  Objective-C++ implementation that bridges to the OBSBOT C++ SDK
 //
@@ -172,13 +172,142 @@ void silentLogHandler(int32_t lvl, const char *msg, va_list args, void *p) {
 
     Device::FovType fov;
     switch (fovType) {
-        case 0: fov = Device::FovType86; break;   // Wide 86°
-        case 1: fov = Device::FovType78; break;   // Medium 78°
-        case 2: fov = Device::FovType65; break;   // Narrow 65°
+        case 0: fov = Device::FovType86; break;   // Wide 86
+        case 1: fov = Device::FovType78; break;   // Medium 78
+        case 2: fov = Device::FovType65; break;   // Narrow 65
         default: fov = Device::FovType86; break;
     }
 
     g_selectedDevice->cameraSetFovU(fov);
+}
+
+#pragma mark - Focus Control
+
+- (void)setAutoFocusMode:(int32_t)focusMode {
+    if (!g_selectedDevice) return;
+
+    Device::DevAutoFocusType afType;
+    switch (focusMode) {
+        case 0: afType = Device::DevAutoFocusAutoSelect; break;
+        case 1: afType = Device::DevAutoFocusAFC; break;  // Continuous AF
+        case 2: afType = Device::DevAutoFocusAFS; break;  // Single AF
+        case 3: afType = Device::DevAutoFocusMF; break;   // Manual
+        default: afType = Device::DevAutoFocusAutoSelect; break;
+    }
+
+    g_selectedDevice->cameraSetAutoFocusModeR(afType);
+}
+
+- (int32_t)getAutoFocusMode {
+    if (!g_selectedDevice) return -1;
+
+    Device::DevAutoFocusType afType;
+    if (g_selectedDevice->cameraGetAutoFocusModeR(afType) == 0) {
+        switch (afType) {
+            case Device::DevAutoFocusAutoSelect: return 0;
+            case Device::DevAutoFocusAFC: return 1;
+            case Device::DevAutoFocusAFS: return 2;
+            case Device::DevAutoFocusMF: return 3;
+            default: return 0;
+        }
+    }
+    return -1;
+}
+
+- (void)setManualFocusPosition:(int32_t)position {
+    if (!g_selectedDevice) return;
+
+    // Clamp to valid range 0-100
+    int32_t clampedPos = std::max(0, std::min(100, position));
+    g_selectedDevice->cameraSetFocusPosR(clampedPos);
+}
+
+- (int32_t)getManualFocusPosition {
+    if (!g_selectedDevice) return -1;
+
+    int32_t focusPos = 0;
+    if (g_selectedDevice->cameraGetFocusPosR(focusPos) == 0) {
+        return focusPos;
+    }
+    return -1;
+}
+
+- (void)setFaceFocus:(BOOL)enable {
+    if (!g_selectedDevice) return;
+
+    g_selectedDevice->cameraSetFaceFocusR(enable);
+}
+
+#pragma mark - HDR Control
+
+- (void)setHDR:(BOOL)enable {
+    if (!g_selectedDevice) return;
+
+    g_selectedDevice->cameraSetWdrR(enable);
+}
+
+- (BOOL)getHDR {
+    if (!g_selectedDevice) return NO;
+
+    int32_t enabled = 0;
+    if (g_selectedDevice->cameraGetWdrR(enabled) == 0) {
+        return enabled != 0;
+    }
+    return NO;
+}
+
+#pragma mark - White Balance
+
+- (void)setWhiteBalance:(int32_t)wbType manualValue:(int32_t)manualValue {
+    if (!g_selectedDevice) return;
+
+    Device::DevWhiteBalanceType wb;
+    switch (wbType) {
+        case 0: wb = Device::DevWhiteBalanceAuto; break;
+        case 1: wb = Device::DevWhiteBalanceDaylight; break;
+        case 2: wb = Device::DevWhiteBalanceFluorescent; break;
+        case 3: wb = Device::DevWhiteBalanceTungsten; break;
+        case 4: wb = Device::DevWhiteBalanceCloudy; break;
+        case 255: wb = Device::DevWhiteBalanceManual; break;
+        default: wb = Device::DevWhiteBalanceAuto; break;
+    }
+
+    g_selectedDevice->cameraSetWhiteBalanceR(wb, manualValue);
+}
+
+- (int32_t)getWhiteBalanceType {
+    if (!g_selectedDevice) return -1;
+
+    Device::DevWhiteBalanceType wbType;
+    int32_t param;
+    if (g_selectedDevice->cameraGetWhiteBalanceR(wbType, param) == 0) {
+        switch (wbType) {
+            case Device::DevWhiteBalanceAuto: return 0;
+            case Device::DevWhiteBalanceDaylight: return 1;
+            case Device::DevWhiteBalanceFluorescent: return 2;
+            case Device::DevWhiteBalanceTungsten: return 3;
+            case Device::DevWhiteBalanceCloudy: return 4;
+            case Device::DevWhiteBalanceManual: return 255;
+            default: return 0;
+        }
+    }
+    return -1;
+}
+
+#pragma mark - Media Mode
+
+- (void)setMediaMode:(int32_t)mode {
+    if (!g_selectedDevice) return;
+
+    Device::MediaMode mediaMode;
+    switch (mode) {
+        case 0: mediaMode = Device::MediaModeNormal; break;
+        case 1: mediaMode = Device::MediaModeBackground; break;
+        case 2: mediaMode = Device::MediaModeAutoFrame; break;
+        default: mediaMode = Device::MediaModeNormal; break;
+    }
+
+    g_selectedDevice->cameraSetMediaModeU(mediaMode);
 }
 
 #pragma mark - Presets

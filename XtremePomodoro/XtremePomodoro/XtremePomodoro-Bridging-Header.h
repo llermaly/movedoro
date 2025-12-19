@@ -2,12 +2,12 @@
 //  XtremePomodoro-Bridging-Header.h
 //  XtremePomodoro
 //
-//  Bridging header to expose Objective-C++ wrapper to Swift
+//  Bridging header (currently empty - OBSBOT SDK removed)
 //
 
 #ifndef XtremePomodoro_Bridging_Header_h
 #define XtremePomodoro_Bridging_Header_h
 
-#import "Wrapper/OBSBOTWrapper.h"
+// No Objective-C/C++ imports needed
 
 #endif /* XtremePomodoro_Bridging_Header_h */

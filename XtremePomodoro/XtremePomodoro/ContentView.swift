@@ -3,7 +3,6 @@ import AVFoundation
 import UniformTypeIdentifiers
 
 struct ContentView: View {
-    @EnvironmentObject var cameraManager: OBSBOTManager
     @StateObject private var cameraCapture = CameraCapture()
     @StateObject private var poseDetector = PoseDetector()
     @StateObject private var photoManager = SessionPhotoManager()
@@ -90,143 +89,6 @@ struct ContentView: View {
                     Text("XtremePomodoro")
                         .font(.largeTitle)
                         .fontWeight(.bold)
-
-                    // Connection Status
-                    HStack {
-                        Circle()
-                            .fill(cameraManager.isConnected ? Color.green : Color.red)
-                            .frame(width: 12, height: 12)
-                        Text(cameraManager.isConnected ? "SDK Connected" : "SDK Disconnected")
-                            .foregroundColor(cameraManager.isConnected ? .green : .red)
-                    }
-
-                    if let deviceName = cameraManager.deviceName {
-                        Text("Device: \(deviceName)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-
-                    Divider()
-
-                    // Camera Controls
-                    Text("Gimbal Controls")
-                        .font(.headline)
-
-                    HStack(spacing: 15) {
-                        Button("Left") {
-                            cameraManager.moveGimbal(yaw: 0, pitch: -30, roll: 0)
-                        }
-                        .buttonStyle(.bordered)
-
-                        Button("Center") {
-                            cameraManager.moveGimbal(yaw: 0, pitch: 0, roll: 0)
-                        }
-                        .buttonStyle(.borderedProminent)
-
-                        Button("Right") {
-                            cameraManager.moveGimbal(yaw: 0, pitch: 30, roll: 0)
-                        }
-                        .buttonStyle(.bordered)
-                    }
-
-                    HStack(spacing: 15) {
-                        Button("Up") {
-                            cameraManager.moveGimbal(yaw: -30, pitch: 0, roll: 0)
-                        }
-                        .buttonStyle(.bordered)
-
-                        Button("Down") {
-                            cameraManager.moveGimbal(yaw: 30, pitch: 0, roll: 0)
-                        }
-                        .buttonStyle(.bordered)
-                    }
-
-                    Divider()
-
-                    // Camera Position Presets
-                    Text("Camera Positions")
-                        .font(.headline)
-
-                    HStack(spacing: 15) {
-                        VStack(spacing: 8) {
-                            Button("Go to Meeting") {
-                                cameraManager.moveToPreset(id: 1)
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(.blue)
-
-                            Button("Save Meeting Pos") {
-                                cameraManager.savePreset(id: 1, name: "Meeting")
-                            }
-                            .buttonStyle(.bordered)
-                            .font(.caption)
-                        }
-
-                        VStack(spacing: 8) {
-                            Button("Go to Exercise") {
-                                cameraManager.moveToPreset(id: 2)
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(.orange)
-
-                            Button("Save Exercise Pos") {
-                                cameraManager.savePreset(id: 2, name: "Exercise")
-                            }
-                            .buttonStyle(.bordered)
-                            .font(.caption)
-                        }
-                    }
-
-                    Divider()
-
-                    // AI Tracking
-                    Text("AI Tracking")
-                        .font(.headline)
-
-                    HStack(spacing: 15) {
-                        Button("Enable") {
-                            cameraManager.enableAITracking(true)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.green)
-
-                        Button("Disable") {
-                            cameraManager.enableAITracking(false)
-                        }
-                        .buttonStyle(.bordered)
-                    }
-
-                    Divider()
-
-                    // Zoom Control
-                    Text("Zoom: \(String(format: "%.1fx", cameraManager.zoomLevel))")
-                        .font(.headline)
-
-                    Slider(value: $cameraManager.zoomLevel, in: 1.0...2.0, step: 0.1)
-                        .frame(width: 200)
-                        .onChange(of: cameraManager.zoomLevel) { oldValue, newValue in
-                            cameraManager.setZoom(newValue)
-                        }
-
-                    HStack {
-                        Button("1x") { cameraManager.setZoom(1.0) }
-                        Button("1.5x") { cameraManager.setZoom(1.5) }
-                        Button("2x") { cameraManager.setZoom(2.0) }
-                    }
-                    .buttonStyle(.bordered)
-
-                    // FOV Control
-                    Text("Field of View")
-                        .font(.subheadline)
-                        .padding(.top, 5)
-
-                    HStack {
-                        Button("Wide 86") { cameraManager.setFOV(0) }
-                            .tint(.green)
-                        Button("Med 78") { cameraManager.setFOV(1) }
-                        Button("Narrow 65") { cameraManager.setFOV(2) }
-                    }
-                    .buttonStyle(.bordered)
 
                     Divider()
 
@@ -345,7 +207,6 @@ struct ContentView: View {
 
                     // Refresh button
                     Button("Scan for Cameras") {
-                        cameraManager.scanForDevices()
                         cameraCapture.loadAvailableCameras()
                     }
                     .buttonStyle(.bordered)
@@ -356,7 +217,6 @@ struct ContentView: View {
         }
         .frame(minWidth: 800, minHeight: 500)
         .onAppear {
-            cameraManager.initialize()
             setupPhotoCaptureCallback()
             photoManager.startSession()
         }
@@ -427,5 +287,4 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .environmentObject(OBSBOTManager())
 }

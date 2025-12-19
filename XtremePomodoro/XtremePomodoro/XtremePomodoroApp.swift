@@ -3,25 +3,21 @@ import SwiftUI
 @main
 struct XtremePomodoroApp: App {
     @StateObject private var appState = AppState()
-    @StateObject private var cameraManager = OBSBOTManager()
     @StateObject private var pomodoroTimer = PomodoroTimer()
 
     var body: some Scene {
         WindowGroup {
             MainAppView()
                 .environmentObject(appState)
-                .environmentObject(cameraManager)
                 .environmentObject(pomodoroTimer)
                 .onAppear {
                     setupTimerCallbacks()
-                    cameraManager.initialize()
                 }
                 .onChange(of: appState.showExerciseOverlay) { _, showExercise in
                     if showExercise {
                         // Show aggressive fullscreen exercise window
                         ExerciseWindowController.shared.showExerciseWindow(
-                            appState: appState,
-                            cameraManager: cameraManager
+                            appState: appState
                         )
                     } else {
                         // Dismiss the exercise window
@@ -66,7 +62,6 @@ struct XtremePomodoroApp: App {
 /// Root view that handles navigation between app states
 struct MainAppView: View {
     @EnvironmentObject var appState: AppState
-    @EnvironmentObject var cameraManager: OBSBOTManager
     @EnvironmentObject var pomodoroTimer: PomodoroTimer
 
     var body: some View {
@@ -88,7 +83,6 @@ struct MainAppView: View {
         .animation(.easeInOut(duration: 0.3), value: appState.currentScreen)
         .sheet(isPresented: $appState.showAdvancedSettings) {
             AdvancedSettingsView()
-                .environmentObject(cameraManager)
         }
         .onChange(of: appState.workDuration) { _, newValue in
             pomodoroTimer.workDurationMinutes = newValue
@@ -102,6 +96,5 @@ struct MainAppView: View {
 #Preview {
     MainAppView()
         .environmentObject(AppState())
-        .environmentObject(OBSBOTManager())
         .environmentObject(PomodoroTimer())
 }

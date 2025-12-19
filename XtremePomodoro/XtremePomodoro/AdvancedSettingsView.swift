@@ -1,10 +1,9 @@
 import SwiftUI
 import AVFoundation
 
-/// Advanced settings for camera, calibration, and OBSBOT controls
+/// Advanced settings for camera and calibration
 struct AdvancedSettingsView: View {
     @EnvironmentObject var appState: AppState
-    @EnvironmentObject var cameraManager: OBSBOTManager
     @Environment(\.dismiss) private var dismiss
 
     @StateObject private var cameraCapture = CameraCapture()
@@ -97,114 +96,18 @@ struct AdvancedSettingsView: View {
                 // Right: Controls
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
-                        // OBSBOT Section
-                        GroupBox("OBSBOT Camera") {
+                        // Camera Selection Section
+                        GroupBox("Camera") {
                             VStack(alignment: .leading, spacing: 12) {
-                                HStack {
-                                    Circle()
-                                        .fill(cameraManager.isConnected ? Color.green : Color.red)
-                                        .frame(width: 10, height: 10)
-                                    Text(cameraManager.isConnected ? "Connected" : "Disconnected")
-                                        .foregroundColor(cameraManager.isConnected ? .green : .red)
-
-                                    if let name = cameraManager.deviceName {
-                                        Text("(\(name))")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-
                                 Button("Scan for Cameras") {
-                                    cameraManager.scanForDevices()
                                     cameraCapture.loadAvailableCameras()
                                 }
                                 .buttonStyle(.bordered)
 
-                                if cameraManager.isConnected {
-                                    Divider()
-
-                                    // Gimbal controls
-                                    Text("Gimbal")
-                                        .font(.subheadline)
+                                if !cameraCapture.availableCameras.isEmpty {
+                                    Text("Available cameras: \(cameraCapture.availableCameras.count)")
+                                        .font(.caption)
                                         .foregroundColor(.secondary)
-
-                                    HStack {
-                                        Button("Left") { cameraManager.moveGimbal(yaw: 0, pitch: -30, roll: 0) }
-                                        Button("Center") { cameraManager.moveGimbal(yaw: 0, pitch: 0, roll: 0) }
-                                        Button("Right") { cameraManager.moveGimbal(yaw: 0, pitch: 30, roll: 0) }
-                                    }
-                                    .buttonStyle(.bordered)
-
-                                    HStack {
-                                        Button("Up") { cameraManager.moveGimbal(yaw: -30, pitch: 0, roll: 0) }
-                                        Button("Down") { cameraManager.moveGimbal(yaw: 30, pitch: 0, roll: 0) }
-                                    }
-                                    .buttonStyle(.bordered)
-
-                                    Divider()
-
-                                    // Presets
-                                    Text("Presets")
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-
-                                    HStack {
-                                        VStack {
-                                            Button("Go Meeting") { cameraManager.moveToPreset(id: 1) }
-                                            Button("Save") { cameraManager.savePreset(id: 1, name: "Meeting") }
-                                                .font(.caption)
-                                        }
-                                        .buttonStyle(.bordered)
-
-                                        VStack {
-                                            Button("Go Exercise") { cameraManager.moveToPreset(id: 2) }
-                                            Button("Save") { cameraManager.savePreset(id: 2, name: "Exercise") }
-                                                .font(.caption)
-                                        }
-                                        .buttonStyle(.bordered)
-                                    }
-
-                                    Divider()
-
-                                    // Zoom & FOV
-                                    Text("Zoom: \(String(format: "%.1fx", cameraManager.zoomLevel))")
-                                        .font(.subheadline)
-
-                                    Slider(value: $cameraManager.zoomLevel, in: 1.0...2.0, step: 0.1)
-                                        .onChange(of: cameraManager.zoomLevel) { _, newValue in
-                                            cameraManager.setZoom(newValue)
-                                        }
-
-                                    HStack {
-                                        Button("1x") { cameraManager.setZoom(1.0) }
-                                        Button("1.5x") { cameraManager.setZoom(1.5) }
-                                        Button("2x") { cameraManager.setZoom(2.0) }
-                                    }
-                                    .buttonStyle(.bordered)
-
-                                    Text("Field of View")
-                                        .font(.subheadline)
-
-                                    HStack {
-                                        Button("Wide") { cameraManager.setFOV(0) }
-                                        Button("Medium") { cameraManager.setFOV(1) }
-                                        Button("Narrow") { cameraManager.setFOV(2) }
-                                    }
-                                    .buttonStyle(.bordered)
-
-                                    Divider()
-
-                                    // AI Tracking
-                                    Text("AI Tracking")
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-
-                                    HStack {
-                                        Button("Enable") { cameraManager.enableAITracking(true) }
-                                            .tint(.green)
-                                        Button("Disable") { cameraManager.enableAITracking(false) }
-                                    }
-                                    .buttonStyle(.bordered)
                                 }
                             }
                         }
@@ -295,5 +198,4 @@ struct AdvancedSettingsView: View {
 #Preview {
     AdvancedSettingsView()
         .environmentObject(AppState())
-        .environmentObject(OBSBOTManager())
 }
