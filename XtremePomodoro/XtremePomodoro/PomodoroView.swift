@@ -106,6 +106,17 @@ struct PomodoroView: View {
                     }
                 }
 
+                // Skip Break button (only visible during break time)
+                if timer.sessionType == .breakTime && timer.timerState != .idle {
+                    Button(action: { timer.reset() }) {
+                        Label("Skip Break", systemImage: "forward.end.fill")
+                            .frame(width: 140)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                    .padding(.top, 10)
+                }
+
                 Spacer()
 
                 // Stats
