@@ -156,7 +156,9 @@ extension CameraCapture: AVCaptureVideoDataOutputSampleBufferDelegate {
             frameCount += 1
             if frameCount >= detectEveryNFrames {
                 frameCount = 0
-                poseDetector?.detectPose(in: cgImage)
+                Task { @MainActor in
+                    poseDetector?.detectPose(in: cgImage)
+                }
             }
         }
     }

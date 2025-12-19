@@ -22,6 +22,8 @@
 		AAA000011A /* AdvancedSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA00002D /* AdvancedSettingsView.swift */; };
 		AAA000012A /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA00002E /* OnboardingView.swift */; };
 		AAA000013A /* ExerciseWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA00002F /* ExerciseWindowController.swift */; };
+		BBB000001 /* TTSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB000010 /* TTSService.swift */; };
+		BBB000002 /* SpeechRecognitionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB000011 /* SpeechRecognitionService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -56,6 +58,8 @@
 		AAA00002D /* AdvancedSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedSettingsView.swift; sourceTree = "<group>"; };
 		AAA00002E /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		AAA00002F /* ExerciseWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseWindowController.swift; sourceTree = "<group>"; };
+		BBB000010 /* TTSService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TTSService.swift; sourceTree = "<group>"; };
+		BBB000011 /* SpeechRecognitionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechRecognitionService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -80,6 +84,7 @@
 		AAA000041 /* XtremePomodoro */ = {
 			isa = PBXGroup;
 			children = (
+				BBB000020 /* Services */,
 				AAA000010 /* XtremePomodoroApp.swift */,
 				AAA000028 /* AppState.swift */,
 				AAA000029 /* PomodoroTimer.swift */,
@@ -108,6 +113,15 @@
 				AAA000020 /* XtremePomodoro.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		BBB000020 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				BBB000010 /* TTSService.swift */,
+				BBB000011 /* SpeechRecognitionService.swift */,
+			);
+			path = Services;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -155,6 +169,8 @@
 				Base,
 			);
 			mainGroup = AAA000040;
+			packageReferences = (
+			);
 			productRefGroup = AAA000042 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -194,6 +210,8 @@
 				AAA000009 /* PoseDetector.swift in Sources */,
 				AAA00000A /* SessionPhotoManager.swift in Sources */,
 				AAA00000B /* SessionGalleryView.swift in Sources */,
+				BBB000001 /* TTSService.swift in Sources */,
+				BBB000002 /* SpeechRecognitionService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -252,7 +270,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -309,7 +327,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;

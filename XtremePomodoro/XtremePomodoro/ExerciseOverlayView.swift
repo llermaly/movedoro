@@ -160,15 +160,54 @@ struct ExerciseOverlayView: View {
                                     .foregroundColor(scoreColor(poseDetector.lastRepScore))
                             }
                         }
+
+                        // 3D mode info
+                        if poseDetector.detectionMode == .mode3D && poseDetector.isPersonDetected {
+                            Divider()
+                                .frame(height: 20)
+                                .background(Color.gray)
+
+                            HStack(spacing: 8) {
+                                // Body height
+                                HStack(spacing: 2) {
+                                    Image(systemName: "figure.stand")
+                                        .foregroundColor(.cyan)
+                                    Text(poseDetector.bodyHeight)
+                                        .foregroundColor(.cyan)
+                                        .font(.caption)
+                                }
+
+                                // Distance
+                                HStack(spacing: 2) {
+                                    Image(systemName: "arrow.left.and.right")
+                                        .foregroundColor(.cyan)
+                                    Text(poseDetector.cameraDistance)
+                                        .foregroundColor(.cyan)
+                                        .font(.caption)
+                                }
+                            }
+                        }
                     }
 
                     Spacer()
 
-                    // Skeleton toggle
+                    // Skeleton toggle and mode indicator
                     if cameraCapture.isCapturing {
-                        Toggle("Skeleton", isOn: $showPoseOverlay)
-                            .toggleStyle(.button)
-                            .tint(.gray)
+                        HStack(spacing: 8) {
+                            // Mode badge
+                            Text(poseDetector.detectionMode.rawValue)
+                                .font(.caption)
+                                .fontWeight(.bold)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(poseDetector.detectionMode == .mode3D ? Color.cyan.opacity(0.3) : Color.green.opacity(0.3))
+                                .foregroundColor(poseDetector.detectionMode == .mode3D ? .cyan : .green)
+                                .cornerRadius(6)
+
+                            Toggle("Skeleton", isOn: $showPoseOverlay)
+                                .toggleStyle(.button)
+                                .tint(.gray)
+                        }
                     }
 
                     // Manual camera start if not capturing
@@ -286,8 +325,8 @@ struct ExerciseOverlayView: View {
         .onDisappear {
             cameraCapture.stopCapture()
         }
-        .onChange(of: isComplete) { completed in
-            if completed && !hasAnnouncedCompletion {
+        .onChange(of: isComplete) { oldValue, newValue in
+            if newValue && !hasAnnouncedCompletion {
                 hasAnnouncedCompletion = true
                 // Wait for the last rep speech to finish before announcing completion
                 poseDetector.speakAfterCurrent("Great job! All reps complete. Click continue to get back to work.")

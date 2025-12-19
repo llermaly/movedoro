@@ -3,11 +3,44 @@ import CoreImage
 import SwiftUI
 import AppKit
 import AVFoundation
+import simd
 
-/// Detected body pose with joint positions
+// MARK: - Pose Detection Mode
+
+enum PoseDetectionMode: String, CaseIterable {
+    case mode2D = "2D"
+    case mode3D = "3D"
+}
+
+// MARK: - Unified Joint Name (maps both 2D and 3D joints)
+
+enum UnifiedJointName: String, CaseIterable, Hashable {
+    // Head
+    case nose, leftEye, rightEye, leftEar, rightEar
+    case topHead, centerHead
+    // Torso
+    case neck, leftShoulder, rightShoulder, centerShoulder
+    case spine, root
+    case leftHip, rightHip
+    // Arms
+    case leftElbow, rightElbow
+    case leftWrist, rightWrist
+    // Legs
+    case leftKnee, rightKnee
+    case leftAnkle, rightAnkle
+}
+
+// MARK: - Detected Pose (unified for 2D and 3D)
+
 struct DetectedPose {
-    var joints: [VNHumanBodyPoseObservation.JointName: CGPoint] = [:]
+    var joints: [UnifiedJointName: CGPoint] = [:]  // 2D screen positions (normalized 0-1)
+    var joints3D: [UnifiedJointName: simd_float3] = [:]  // 3D positions in meters (3D mode only)
     var confidence: Float = 0.0
+    var is3D: Bool = false
+
+    // 3D-specific properties
+    var bodyHeight: Float?  // Estimated height in meters
+    var cameraDistance: Float?  // Distance from camera in meters
 
     /// Check if person is in a standing position
     var isStanding: Bool {
@@ -18,14 +51,13 @@ struct DetectedPose {
             return false
         }
 
-        // Hips should be above ankles
         let avgHipY = (leftHip.y + rightHip.y) / 2
         let avgAnkleY = (leftAnkle.y + rightAnkle.y) / 2
 
-        return avgHipY < avgAnkleY // In image coordinates, y increases downward
+        return avgHipY < avgAnkleY
     }
 
-    /// Check if arms are raised (like in jumping jacks)
+    /// Check if arms are raised
     var armsRaised: Bool {
         guard let leftWrist = joints[.leftWrist],
               let rightWrist = joints[.rightWrist],
@@ -34,11 +66,10 @@ struct DetectedPose {
             return false
         }
 
-        // Wrists should be above shoulders
         return leftWrist.y < leftShoulder.y && rightWrist.y < rightShoulder.y
     }
 
-    /// Check if hands are on hips (superhero pose)
+    /// Check if hands are on hips
     var handsOnHips: Bool {
         guard let leftWrist = joints[.leftWrist],
               let rightWrist = joints[.rightWrist],
@@ -49,19 +80,17 @@ struct DetectedPose {
             return false
         }
 
-        // Wrists should be near hip level (within tolerance)
         let hipY = (leftHip.y + rightHip.y) / 2
         let shoulderY = (leftShoulder.y + rightShoulder.y) / 2
         let torsoHeight = abs(shoulderY - hipY)
-        let tolerance = torsoHeight * 0.6 // 60% of torso height tolerance (generous)
+        let tolerance = torsoHeight * 0.6
 
         let leftWristNearHip = abs(leftWrist.y - leftHip.y) < tolerance
         let rightWristNearHip = abs(rightWrist.y - rightHip.y) < tolerance
 
-        // Wrists should be spread apart (near the sides, not together)
         let shoulderWidth = abs(leftShoulder.x - rightShoulder.x)
         let wristSpread = abs(leftWrist.x - rightWrist.x)
-        let wristsSpreadApart = wristSpread > shoulderWidth * 0.4 // Relaxed from 0.5
+        let wristsSpreadApart = wristSpread > shoulderWidth * 0.4
 
         return leftWristNearHip && rightWristNearHip && wristsSpreadApart
     }
@@ -75,11 +104,10 @@ struct DetectedPose {
             return false
         }
 
-        // Hips should be close to knee level
         let avgHipY = (leftHip.y + rightHip.y) / 2
         let avgKneeY = (leftKnee.y + rightKnee.y) / 2
 
-        return abs(avgHipY - avgKneeY) < 0.15 // Hips near knee level
+        return abs(avgHipY - avgKneeY) < 0.15
     }
 
     /// Get average hip Y position (for calibration)
@@ -92,11 +120,24 @@ struct DetectedPose {
     }
 }
 
-/// Manages pose detection using Vision framework
+// MARK: - Pose Detector
+
+@MainActor
 class PoseDetector: ObservableObject {
     @Published var currentPose: DetectedPose?
     @Published var isPersonDetected: Bool = false
     @Published var poseDescription: String = "No pose detected"
+
+    // Detection mode
+    @Published var detectionMode: PoseDetectionMode = .mode2D {
+        didSet {
+            UserDefaults.standard.set(detectionMode.rawValue, forKey: "poseDetectionMode")
+        }
+    }
+
+    // 3D-specific info
+    @Published var bodyHeight: String = "--"
+    @Published var cameraDistance: String = "--"
 
     // Exercise tracking
     @Published var exerciseCount: Int = 0
@@ -107,7 +148,7 @@ class PoseDetector: ObservableObject {
     @Published var calibrationMessage: String = ""
     @Published var isCalibrated: Bool = false
 
-    // Calibrated thresholds (persisted to UserDefaults)
+    // Calibrated thresholds
     @Published var sittingHipY: CGFloat = 0.0 {
         didSet { saveCalibration() }
     }
@@ -120,7 +161,7 @@ class PoseDetector: ObservableObject {
     private let kStandingHipY = "calibration.standingHipY"
     private let kIsCalibrated = "calibration.isCalibrated"
 
-    // Exercise state machine for sit-to-stand
+    // Exercise state machine
     @Published var exerciseState: ExerciseState = .standing
 
     enum ExerciseState: String {
@@ -131,34 +172,26 @@ class PoseDetector: ObservableObject {
         case goingUp = "Going Up"
     }
 
-    private var lastPoseState: Bool = false // For counting reps (other exercises)
+    private var lastPoseState: Bool = false
     private var armsRaisedStartTime: Date? = nil
     private var armsWereRaised: Bool = false
-    private var gestureResetRequired: Bool = false // Must release gesture before next step
-    private var gestureReleaseStartTime: Date? = nil // Track when hands left hips
-    private let gestureHoldDuration: TimeInterval = 1.5 // Hold hands on hips for 1.5 seconds
-    private let gestureReleaseDuration: TimeInterval = 0.5 // Must keep hands off hips for 0.5s
+    private var gestureResetRequired: Bool = false
+    private var gestureReleaseStartTime: Date? = nil
+    private let gestureHoldDuration: TimeInterval = 1.5
+    private let gestureReleaseDuration: TimeInterval = 0.5
 
-    // Sit-to-stand tracking
     private var sittingStartTime: Date? = nil
-    private let sittingHoldDuration: TimeInterval = 0.3 // Must hold sit for 0.3 seconds
-    private let hysteresisPercent: CGFloat = 0.85 // Must reach 85% of calibrated position
+    private let sittingHoldDuration: TimeInterval = 0.3
+    private let hysteresisPercent: CGFloat = 0.85
 
-    // Score tracking - tracks how close to ideal positions
-    private var lowestHipYInRep: CGFloat = 1.0  // Track lowest point during sit (closer to sittingHipY = better)
-    private var highestHipYInRep: CGFloat = 0.0 // Track highest point during stand (closer to standingHipY = better)
-    @Published var lastRepScore: Int = 0        // Score 0-100 for last rep
-    @Published var repScores: [Int] = []        // All rep scores
-    private var sittingPhotoCaptured: Bool = false // Track if sitting photo was captured for current rep
+    private var lowestHipYInRep: CGFloat = 1.0
+    private var highestHipYInRep: CGFloat = 0.0
+    @Published var lastRepScore: Int = 0
+    @Published var repScores: [Int] = []
+    private var sittingPhotoCaptured: Bool = false
 
-    // Callback for rep completion with score
-    var onRepCompleted: ((Int, Int) -> Void)?   // (repNumber, score)
-
-    // Audio feedback
-    private let speechSynthesizer = NSSpeechSynthesizer()
-
-    // Photo capture callback - called when a photo should be taken
-    // Parameters: repNumber, position ("sitting" or "standing")
+    var onRepCompleted: ((Int, Int) -> Void)?
+    var ttsService: TTSService = NativeTTSService()
     var onCapturePhoto: ((Int, String) -> Void)?
 
     enum ExerciseType: String, CaseIterable {
@@ -170,18 +203,216 @@ class PoseDetector: ObservableObject {
 
     enum CalibrationState: Equatable {
         case notCalibrated
-        case waitingForReady      // Waiting for user to raise arms to start
-        case waitingForSit        // Waiting for user to sit and confirm
-        case waitingForStand      // Waiting for user to stand and confirm
+        case waitingForReady
+        case waitingForSit
+        case waitingForStand
         case calibrated
     }
-
-    private let poseRequest = VNDetectHumanBodyPoseRequest()
 
     // MARK: - Initialization
 
     init() {
         loadCalibration()
+        // Load saved detection mode
+        if let savedMode = UserDefaults.standard.string(forKey: "poseDetectionMode"),
+           let mode = PoseDetectionMode(rawValue: savedMode) {
+            detectionMode = mode
+        }
+    }
+
+    // MARK: - Pose Detection (New Swift Vision API)
+
+    /// Process a frame using the new Swift Vision API (async)
+    func detectPose(in pixelBuffer: CVPixelBuffer) async {
+        do {
+            let pose: DetectedPose?
+
+            switch detectionMode {
+            case .mode2D:
+                pose = try await detect2DPose(in: pixelBuffer)
+            case .mode3D:
+                pose = try await detect3DPose(in: pixelBuffer)
+            }
+
+            if let pose = pose {
+                self.currentPose = pose
+                self.isPersonDetected = true
+                self.updatePoseDescription(pose)
+                self.processCalibration(pose)
+                self.trackExercise(pose)
+
+                // Update 3D info display
+                if pose.is3D {
+                    if let height = pose.bodyHeight {
+                        self.bodyHeight = String(format: "%.2f m", height)
+                    }
+                    if let distance = pose.cameraDistance {
+                        self.cameraDistance = String(format: "%.2f m", distance)
+                    }
+                } else {
+                    self.bodyHeight = "--"
+                    self.cameraDistance = "--"
+                }
+            } else {
+                self.isPersonDetected = false
+                self.currentPose = nil
+                self.poseDescription = "No person detected"
+            }
+        } catch {
+            print("Pose detection error: \(error)")
+            self.isPersonDetected = false
+            self.currentPose = nil
+            self.poseDescription = "Detection error"
+        }
+    }
+
+    /// Backward compatible method for CGImage input
+    func detectPose(in cgImage: CGImage) {
+        Task {
+            // Convert CGImage to CVPixelBuffer
+            guard let pixelBuffer = cgImage.toPixelBuffer() else {
+                await MainActor.run {
+                    self.isPersonDetected = false
+                    self.currentPose = nil
+                    self.poseDescription = "Image conversion failed"
+                }
+                return
+            }
+            await detectPose(in: pixelBuffer)
+        }
+    }
+
+    // MARK: - 2D Pose Detection (New Swift API)
+
+    private func detect2DPose(in pixelBuffer: CVPixelBuffer) async throws -> DetectedPose? {
+        let request = DetectHumanBodyPoseRequest()
+        let results = try await request.perform(on: pixelBuffer)
+
+        guard let observation = results.first else { return nil }
+        return extractPose2D(from: observation)
+    }
+
+    private func extractPose2D(from observation: HumanBodyPoseObservation) -> DetectedPose {
+        var pose = DetectedPose()
+        pose.confidence = observation.confidence
+        pose.is3D = false
+
+        // Map joint groups to unified names
+        let jointGroups: [HumanBodyPoseObservation.JointsGroupName] = [.face, .torso, .leftArm, .rightArm, .leftLeg, .rightLeg]
+
+        for groupName in jointGroups {
+            let jointsInGroup = observation.allJoints(in: groupName)
+            for (jointName, joint) in jointsInGroup {
+                if joint.confidence > 0.3 {
+                    let point = joint.location.verticallyFlipped().cgPoint
+                    if let unifiedName = mapJointName2D(jointName) {
+                        pose.joints[unifiedName] = point
+                    }
+                }
+            }
+        }
+
+        return pose
+    }
+
+    private func mapJointName2D(_ jointName: HumanBodyPoseObservation.JointName) -> UnifiedJointName? {
+        switch jointName {
+        case .nose: return .nose
+        case .leftEye: return .leftEye
+        case .rightEye: return .rightEye
+        case .leftEar: return .leftEar
+        case .rightEar: return .rightEar
+        case .leftShoulder: return .leftShoulder
+        case .rightShoulder: return .rightShoulder
+        case .leftElbow: return .leftElbow
+        case .rightElbow: return .rightElbow
+        case .leftWrist: return .leftWrist
+        case .rightWrist: return .rightWrist
+        case .leftHip: return .leftHip
+        case .rightHip: return .rightHip
+        case .leftKnee: return .leftKnee
+        case .rightKnee: return .rightKnee
+        case .leftAnkle: return .leftAnkle
+        case .rightAnkle: return .rightAnkle
+        case .neck: return .neck
+        case .root: return .root
+        default: return nil
+        }
+    }
+
+    // MARK: - 3D Pose Detection (New Swift API)
+
+    private func detect3DPose(in pixelBuffer: CVPixelBuffer) async throws -> DetectedPose? {
+        let request = DetectHumanBodyPose3DRequest()
+        let results = try await request.perform(on: pixelBuffer)
+
+        guard let observation = results.first else { return nil }
+        return try extractPose3D(from: observation)
+    }
+
+    private func extractPose3D(from observation: HumanBodyPose3DObservation) throws -> DetectedPose {
+        var pose = DetectedPose()
+        pose.confidence = observation.confidence
+        pose.is3D = true
+
+        // Get body height (convert from Measurement to Float in meters)
+        pose.bodyHeight = Float(observation.bodyHeight.converted(to: .meters).value)
+
+        // Get all joints using joint groups (similar to 2D API)
+        let jointGroups: [HumanBodyPose3DObservation.JointsGroupName] = [.head, .torso, .leftArm, .rightArm, .leftLeg, .rightLeg]
+
+        for groupName in jointGroups {
+            let jointsInGroup = observation.allJoints(in: groupName)
+            for (jointName, joint) in jointsInGroup {
+                if let unifiedName = mapJointName3D(jointName) {
+                    // Get 2D projection for screen display
+                    if let point2D = try? observation.pointInImage(for: jointName) {
+                        pose.joints[unifiedName] = CGPoint(
+                            x: CGFloat(point2D.x),
+                            y: CGFloat(1 - point2D.y)  // Flip Y for screen coordinates
+                        )
+                    }
+
+                    // Store 3D position (extract translation from 4x4 matrix)
+                    let position = joint.position
+                    pose.joints3D[unifiedName] = simd_float3(
+                        position.columns.3.x,
+                        position.columns.3.y,
+                        position.columns.3.z
+                    )
+                }
+            }
+        }
+
+        // Calculate camera distance from root joint
+        if let rootPos = pose.joints3D[.root] {
+            pose.cameraDistance = simd_length(rootPos)
+        }
+
+        return pose
+    }
+
+    private func mapJointName3D(_ jointName: HumanBodyPose3DObservation.JointName) -> UnifiedJointName? {
+        switch jointName {
+        case .topHead: return .topHead
+        case .centerHead: return .centerHead
+        case .leftShoulder: return .leftShoulder
+        case .rightShoulder: return .rightShoulder
+        case .centerShoulder: return .centerShoulder
+        case .spine: return .spine
+        case .root: return .root
+        case .leftHip: return .leftHip
+        case .rightHip: return .rightHip
+        case .leftElbow: return .leftElbow
+        case .rightElbow: return .rightElbow
+        case .leftWrist: return .leftWrist
+        case .rightWrist: return .rightWrist
+        case .leftKnee: return .leftKnee
+        case .rightKnee: return .rightKnee
+        case .leftAnkle: return .leftAnkle
+        case .rightAnkle: return .rightAnkle
+        default: return nil
+        }
     }
 
     // MARK: - Calibration Persistence
@@ -199,7 +430,6 @@ class PoseDetector: ObservableObject {
             let sitting = UserDefaults.standard.double(forKey: kSittingHipY)
             let standing = UserDefaults.standard.double(forKey: kStandingHipY)
 
-            // Only restore if values seem valid (non-zero and different)
             if sitting != 0 && standing != 0 && sitting != standing {
                 sittingHipY = CGFloat(sitting)
                 standingHipY = CGFloat(standing)
@@ -223,63 +453,22 @@ class PoseDetector: ObservableObject {
         resetCount()
     }
 
-    /// Process a frame and detect poses
-    func detectPose(in cgImage: CGImage) {
-        let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
-
-        do {
-            try handler.perform([poseRequest])
-
-            guard let observation = poseRequest.results?.first else {
-                DispatchQueue.main.async {
-                    self.isPersonDetected = false
-                    self.currentPose = nil
-                    self.poseDescription = "No person detected"
-                }
-                return
-            }
-
-            let pose = extractPose(from: observation)
-
-            DispatchQueue.main.async {
-                self.currentPose = pose
-                self.isPersonDetected = true
-                self.updatePoseDescription(pose)
-                self.processCalibration(pose)
-                self.trackExercise(pose)
-            }
-
-        } catch {
-            print("Pose detection error: \(error)")
-        }
-    }
-
     // MARK: - Audio Feedback
 
     private func speak(_ text: String) {
-        speechSynthesizer.stopSpeaking()
-        speechSynthesizer.startSpeaking(text)
+        ttsService.speak(text)
     }
 
     private func playBeep() {
         NSSound.beep()
     }
 
-    /// Check if speech is currently playing
     var isSpeaking: Bool {
-        speechSynthesizer.isSpeaking
+        ttsService.isSpeaking
     }
 
-    /// Speak text after any current speech finishes
     func speakAfterCurrent(_ text: String, checkInterval: TimeInterval = 0.2) {
-        if speechSynthesizer.isSpeaking {
-            // Poll until current speech finishes
-            DispatchQueue.main.asyncAfter(deadline: .now() + checkInterval) { [weak self] in
-                self?.speakAfterCurrent(text, checkInterval: checkInterval)
-            }
-        } else {
-            speechSynthesizer.startSpeaking(text)
-        }
+        ttsService.speakAfterCurrent(text, checkInterval: checkInterval)
     }
 
     // MARK: - Calibration
@@ -306,40 +495,33 @@ class PoseDetector: ObservableObject {
 
         let handsCurrentlyOnHips = pose.handsOnHips
 
-        // If gesture reset is required, wait for hands to leave hips for required duration
         if gestureResetRequired {
             if !handsCurrentlyOnHips {
-                // Start tracking release time if not already
                 if gestureReleaseStartTime == nil {
                     gestureReleaseStartTime = Date()
                 } else if let releaseStart = gestureReleaseStartTime,
                           Date().timeIntervalSince(releaseStart) >= gestureReleaseDuration {
-                    // Hands have been off long enough - can now detect next gesture
                     gestureResetRequired = false
                     gestureReleaseStartTime = nil
                     armsRaisedStartTime = nil
                     armsWereRaised = false
                 }
             } else {
-                // Hands back on hips - reset release timer
                 gestureReleaseStartTime = nil
             }
-            return // Don't process gesture until reset
+            return
         }
 
-        // Detect hands on hips gesture with hold duration
         if handsCurrentlyOnHips {
             if armsRaisedStartTime == nil {
                 armsRaisedStartTime = Date()
             } else if let startTime = armsRaisedStartTime,
                       Date().timeIntervalSince(startTime) >= gestureHoldDuration,
                       !armsWereRaised {
-                // Gesture held long enough - trigger action
                 armsWereRaised = true
                 handleCalibrationGesture(pose)
             }
         } else {
-            // Hands moved - reset
             armsRaisedStartTime = nil
             armsWereRaised = false
         }
@@ -355,7 +537,7 @@ class PoseDetector: ObservableObject {
             calibrationMessage = "Release hands, sit down, then hands on hips"
             speak("Good! Release your hands, sit down on your poof, then put hands on hips again")
             resetGestureState()
-            gestureResetRequired = true // Must release gesture before next step
+            gestureResetRequired = true
 
         case .waitingForSit:
             playBeep()
@@ -364,14 +546,14 @@ class PoseDetector: ObservableObject {
             calibrationMessage = "Sitting saved! Release, stand up, hands on hips"
             speak("Sitting position saved. Release your hands, stand up, then put hands on hips again")
             resetGestureState()
-            gestureResetRequired = true // Must release gesture before next step
+            gestureResetRequired = true
 
         case .waitingForStand:
             playBeep()
             standingHipY = hipY
             calibrationState = .calibrated
             isCalibrated = true
-            saveCalibration() // Explicitly save after isCalibrated is true
+            saveCalibration()
             calibrationMessage = "Calibration complete!"
             speak("Calibration complete! You can now start your exercise")
             resetGestureState()
@@ -388,34 +570,24 @@ class PoseDetector: ObservableObject {
         gestureReleaseStartTime = nil
     }
 
-    /// Check if in calibrated sitting zone (with hysteresis)
-    /// Must be within 85% of the calibrated sitting position
     func isInSittingZone(_ pose: DetectedPose) -> Bool {
         guard isCalibrated, let hipY = pose.hipY else { return false }
 
-        // Calculate the range between sitting and standing
         let range = abs(standingHipY - sittingHipY)
-        // Sitting threshold: must be close to calibrated sitting position
-        // sittingHipY is lower (sitting), standingHipY is higher (standing)
         let sittingThreshold = sittingHipY + (range * (1 - hysteresisPercent))
 
         return hipY <= sittingThreshold
     }
 
-    /// Check if in calibrated standing zone (with hysteresis)
-    /// Must be within 85% of the calibrated standing position
     func isInStandingZone(_ pose: DetectedPose) -> Bool {
         guard isCalibrated, let hipY = pose.hipY else { return false }
 
-        // Calculate the range between sitting and standing
         let range = abs(standingHipY - sittingHipY)
-        // Standing threshold: must be close to calibrated standing position
         let standingThreshold = standingHipY - (range * (1 - hysteresisPercent))
 
         return hipY >= standingThreshold
     }
 
-    /// Get current position as percentage (0% = sitting, 100% = standing)
     func getPositionPercent(_ pose: DetectedPose) -> CGFloat? {
         guard isCalibrated, let hipY = pose.hipY else { return nil }
 
@@ -426,30 +598,12 @@ class PoseDetector: ObservableObject {
         return max(0, min(100, percent))
     }
 
-    private func extractPose(from observation: VNHumanBodyPoseObservation) -> DetectedPose {
-        var pose = DetectedPose()
-        pose.confidence = observation.confidence
-
-        let jointNames: [VNHumanBodyPoseObservation.JointName] = [
-            .nose, .leftEye, .rightEye, .leftEar, .rightEar,
-            .leftShoulder, .rightShoulder, .leftElbow, .rightElbow,
-            .leftWrist, .rightWrist, .leftHip, .rightHip,
-            .leftKnee, .rightKnee, .leftAnkle, .rightAnkle
-        ]
-
-        for jointName in jointNames {
-            if let point = try? observation.recognizedPoint(jointName),
-               point.confidence > 0.3 {
-                pose.joints[jointName] = CGPoint(x: point.location.x, y: point.location.y)
-            }
-        }
-
-        return pose
-    }
-
     private func updatePoseDescription(_ pose: DetectedPose) {
         var descriptions: [String] = []
 
+        if pose.is3D {
+            descriptions.append("3D")
+        }
         if pose.isStanding {
             descriptions.append("Standing")
         }
@@ -467,7 +621,6 @@ class PoseDetector: ObservableObject {
     }
 
     private func trackExercise(_ pose: DetectedPose) {
-        // Don't track during calibration
         guard calibrationState == .notCalibrated || calibrationState == .calibrated else {
             return
         }
@@ -480,8 +633,6 @@ class PoseDetector: ObservableObject {
         }
     }
 
-    /// State machine for sit-to-stand exercise
-    /// Flow: standing -> goingDown -> holdingSit -> sitting -> goingUp -> standing (count rep!)
     private func trackSitToStand(_ pose: DetectedPose) {
         guard isCalibrated, let currentHipY = pose.hipY else { return }
 
@@ -490,114 +641,89 @@ class PoseDetector: ObservableObject {
 
         switch exerciseState {
         case .standing:
-            // Waiting for user to leave standing zone (start going down)
             if !inStandingZone {
                 exerciseState = .goingDown
                 sittingStartTime = nil
-                // Reset tracking for new rep
                 lowestHipYInRep = currentHipY
                 highestHipYInRep = currentHipY
                 sittingPhotoCaptured = false
             }
 
         case .goingDown:
-            // Track lowest point reached
             lowestHipYInRep = min(lowestHipYInRep, currentHipY)
 
-            // User is moving down, waiting to reach sitting zone
             if inSittingZone {
-                // Reached sitting zone, start hold timer
                 exerciseState = .holdingSit
                 sittingStartTime = Date()
             } else if inStandingZone {
-                // Went back to standing without reaching sitting - reset
                 exerciseState = .standing
                 sittingStartTime = nil
             }
 
         case .holdingSit:
-            // Track lowest point reached
             lowestHipYInRep = min(lowestHipYInRep, currentHipY)
 
-            // User must hold in sitting zone for required duration
             if inSittingZone {
                 if let startTime = sittingStartTime,
                    Date().timeIntervalSince(startTime) >= sittingHoldDuration {
-                    // Held long enough - sitting confirmed!
                     exerciseState = .sitting
-                    playBeep() // Audio feedback for reaching sitting position
-                    // Capture sitting photo only once per rep
+                    playBeep()
                     if !sittingPhotoCaptured {
                         onCapturePhoto?(exerciseCount + 1, "sitting")
                         sittingPhotoCaptured = true
                     }
                 }
             } else {
-                // Left sitting zone before hold completed - go back to goingDown
                 exerciseState = .goingDown
                 sittingStartTime = nil
             }
 
         case .sitting:
-            // Track lowest point reached
             lowestHipYInRep = min(lowestHipYInRep, currentHipY)
 
-            // User is sitting, waiting for them to start going up
             if !inSittingZone {
                 exerciseState = .goingUp
-                highestHipYInRep = currentHipY // Start tracking highest point
+                highestHipYInRep = currentHipY
             }
 
         case .goingUp:
-            // Track highest point reached
             highestHipYInRep = max(highestHipYInRep, currentHipY)
 
-            // User is moving up, waiting to reach standing zone
             if inStandingZone {
-                // Calculate score before counting rep
                 let score = calculateRepScore()
 
-                // Completed the rep!
                 exerciseCount += 1
                 lastRepScore = score
                 repScores.append(score)
 
-                // Announce rep and score
                 speak("\(exerciseCount), \(score) percent")
 
-                // Capture standing photo (rep completed)
                 onCapturePhoto?(exerciseCount, "standing")
                 onRepCompleted?(exerciseCount, score)
 
                 exerciseState = .standing
                 sittingStartTime = nil
             } else if inSittingZone {
-                // Went back down to sitting - reset to sitting state
                 exerciseState = .holdingSit
                 sittingStartTime = Date()
             }
         }
     }
 
-    /// Calculate score 0-100 based on how close to ideal positions
     private func calculateRepScore() -> Int {
         let range = standingHipY - sittingHipY
         guard range > 0 else { return 0 }
 
-        // Sitting score: how close did lowestHipY get to sittingHipY? (lower = better)
         let sittingDeviation = lowestHipYInRep - sittingHipY
         let sittingScore = max(0, 1 - (sittingDeviation / range))
 
-        // Standing score: how close did highestHipY get to standingHipY? (higher = better)
         let standingDeviation = standingHipY - highestHipYInRep
         let standingScore = max(0, 1 - (standingDeviation / range))
 
-        // Average both scores, convert to 0-100
         let totalScore = ((sittingScore + standingScore) / 2) * 100
         return Int(min(100, max(0, totalScore)))
     }
 
-    /// Simple exercise tracking (original logic for jumping jacks, squats, arm raises)
     private func trackSimpleExercise(_ pose: DetectedPose) {
         var currentState: Bool
 
@@ -612,7 +738,6 @@ class PoseDetector: ObservableObject {
             return
         }
 
-        // Count a rep when transitioning from active to rest position
         if lastPoseState && !currentState {
             exerciseCount += 1
             speak("\(exerciseCount)")
@@ -638,7 +763,6 @@ class PoseDetector: ObservableObject {
         resetCount()
     }
 
-    /// Get exercise state description for UI
     func getExerciseStateDescription() -> String {
         guard currentExercise == .sitToStand && isCalibrated else {
             return ""
@@ -647,7 +771,8 @@ class PoseDetector: ObservableObject {
     }
 }
 
-/// View that draws pose overlay on camera preview
+// MARK: - Pose Overlay View
+
 struct PoseOverlayView: View {
     let pose: DetectedPose?
     let imageSize: CGSize
@@ -663,15 +788,26 @@ struct PoseOverlayView: View {
                     drawSkeleton(context: context, pose: pose, scaleX: scaleX, scaleY: scaleY)
 
                     // Draw joint points
-                    for (_, point) in pose.joints {
+                    for (jointName, point) in pose.joints {
                         let screenPoint = CGPoint(
                             x: point.x * scaleX,
-                            y: (1 - point.y) * scaleY // Flip Y coordinate
+                            y: point.y * scaleY
                         )
 
+                        // Different colors for 3D mode
+                        let color: Color = pose.is3D ? .cyan : .green
+                        let size: CGFloat = pose.is3D ? 8 : 10
+
                         context.fill(
-                            Circle().path(in: CGRect(x: screenPoint.x - 5, y: screenPoint.y - 5, width: 10, height: 10)),
-                            with: .color(.green)
+                            Circle().path(in: CGRect(x: screenPoint.x - size/2, y: screenPoint.y - size/2, width: size, height: size)),
+                            with: .color(color)
+                        )
+
+                        // Draw white border
+                        context.stroke(
+                            Circle().path(in: CGRect(x: screenPoint.x - size/2, y: screenPoint.y - size/2, width: size, height: size)),
+                            with: .color(.white),
+                            lineWidth: 1
                         )
                     }
                 }
@@ -680,20 +816,57 @@ struct PoseOverlayView: View {
     }
 
     private func drawSkeleton(context: GraphicsContext, pose: DetectedPose, scaleX: CGFloat, scaleY: CGFloat) {
-        let connections: [(VNHumanBodyPoseObservation.JointName, VNHumanBodyPoseObservation.JointName)] = [
-            (.leftShoulder, .rightShoulder),
-            (.leftShoulder, .leftElbow),
-            (.leftElbow, .leftWrist),
-            (.rightShoulder, .rightElbow),
-            (.rightElbow, .rightWrist),
-            (.leftShoulder, .leftHip),
-            (.rightShoulder, .rightHip),
-            (.leftHip, .rightHip),
-            (.leftHip, .leftKnee),
-            (.leftKnee, .leftAnkle),
-            (.rightHip, .rightKnee),
-            (.rightKnee, .rightAnkle)
-        ]
+        // Different connections for 2D vs 3D
+        let connections: [(UnifiedJointName, UnifiedJointName)]
+
+        if pose.is3D {
+            // 3D skeleton connections
+            connections = [
+                // Head
+                (.topHead, .centerHead),
+                (.centerHead, .centerShoulder),
+                // Torso
+                (.leftShoulder, .centerShoulder),
+                (.rightShoulder, .centerShoulder),
+                (.centerShoulder, .spine),
+                (.spine, .root),
+                (.root, .leftHip),
+                (.root, .rightHip),
+                // Arms
+                (.leftShoulder, .leftElbow),
+                (.leftElbow, .leftWrist),
+                (.rightShoulder, .rightElbow),
+                (.rightElbow, .rightWrist),
+                // Legs
+                (.leftHip, .leftKnee),
+                (.leftKnee, .leftAnkle),
+                (.rightHip, .rightKnee),
+                (.rightKnee, .rightAnkle)
+            ]
+        } else {
+            // 2D skeleton connections
+            connections = [
+                // Shoulders
+                (.leftShoulder, .rightShoulder),
+                // Arms
+                (.leftShoulder, .leftElbow),
+                (.leftElbow, .leftWrist),
+                (.rightShoulder, .rightElbow),
+                (.rightElbow, .rightWrist),
+                // Torso
+                (.leftShoulder, .leftHip),
+                (.rightShoulder, .rightHip),
+                (.leftHip, .rightHip),
+                // Legs
+                (.leftHip, .leftKnee),
+                (.leftKnee, .leftAnkle),
+                (.rightHip, .rightKnee),
+                (.rightKnee, .rightAnkle)
+            ]
+        }
+
+        let lineColor: Color = pose.is3D ? .cyan : .green
+        let lineWidth: CGFloat = pose.is3D ? 3 : 2
 
         for (start, end) in connections {
             guard let startPoint = pose.joints[start],
@@ -701,14 +874,73 @@ struct PoseOverlayView: View {
                 continue
             }
 
-            let p1 = CGPoint(x: startPoint.x * scaleX, y: (1 - startPoint.y) * scaleY)
-            let p2 = CGPoint(x: endPoint.x * scaleX, y: (1 - endPoint.y) * scaleY)
+            let p1 = CGPoint(x: startPoint.x * scaleX, y: startPoint.y * scaleY)
+            let p2 = CGPoint(x: endPoint.x * scaleX, y: endPoint.y * scaleY)
 
             var path = Path()
             path.move(to: p1)
             path.addLine(to: p2)
 
-            context.stroke(path, with: .color(.green), lineWidth: 2)
+            context.stroke(path, with: .color(lineColor), lineWidth: lineWidth)
         }
+    }
+}
+
+// MARK: - CGImage Extension
+
+extension CGImage {
+    func toPixelBuffer() -> CVPixelBuffer? {
+        let width = self.width
+        let height = self.height
+
+        var pixelBuffer: CVPixelBuffer?
+        let attrs: [String: Any] = [
+            kCVPixelBufferCGImageCompatibilityKey as String: true,
+            kCVPixelBufferCGBitmapContextCompatibilityKey as String: true
+        ]
+
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            width,
+            height,
+            kCVPixelFormatType_32ARGB,
+            attrs as CFDictionary,
+            &pixelBuffer
+        )
+
+        guard status == kCVReturnSuccess, let buffer = pixelBuffer else {
+            return nil
+        }
+
+        CVPixelBufferLockBaseAddress(buffer, [])
+        defer { CVPixelBufferUnlockBaseAddress(buffer, []) }
+
+        guard let context = CGContext(
+            data: CVPixelBufferGetBaseAddress(buffer),
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: CVPixelBufferGetBytesPerRow(buffer),
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.noneSkipFirst.rawValue
+        ) else {
+            return nil
+        }
+
+        context.draw(self, in: CGRect(x: 0, y: 0, width: width, height: height))
+
+        return buffer
+    }
+}
+
+// MARK: - NormalizedPoint Extension
+
+extension NormalizedPoint {
+    func verticallyFlipped() -> NormalizedPoint {
+        NormalizedPoint(x: self.x, y: 1 - self.y)
+    }
+
+    var cgPoint: CGPoint {
+        CGPoint(x: CGFloat(self.x), y: CGFloat(self.y))
     }
 }
