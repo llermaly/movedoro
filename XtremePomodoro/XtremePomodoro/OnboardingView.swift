@@ -22,7 +22,7 @@ struct OnboardingView: View {
 
             VStack(spacing: 0) {
                 // Header with progress
-                VStack(spacing: 12) {
+                VStack(spacing: 8) {
                     Text("Setup XtremePomodoro")
                         .font(.headline)
                         .foregroundColor(.secondary)
@@ -35,20 +35,20 @@ struct OnboardingView: View {
                                 .frame(height: 6)
                         }
                     }
-                    .padding(.horizontal, 60)
+                    .padding(.horizontal, 40)
 
                     // Step indicator
                     Text("Step \(currentStep + 1) of \(totalSteps)")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                .padding(.top, 30)
-                .padding(.bottom, 20)
+                .padding(.top, 16)
+                .padding(.bottom, 12)
 
                 Divider()
                     .padding(.horizontal, 40)
 
-                // Step content
+                // Step content - fixed height container so buttons stay in place
                 Group {
                     switch currentStep {
                     case 0: welcomeStep
@@ -58,12 +58,15 @@ struct OnboardingView: View {
                     default: welcomeStep
                     }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity)
+                .frame(height: 680)
+
+                Spacer(minLength: 0)
 
                 Divider()
                     .padding(.horizontal, 40)
 
-                // Navigation buttons
+                // Navigation buttons - always at bottom
                 HStack {
                     if currentStep > 0 {
                         Button("Back") {
@@ -118,10 +121,11 @@ struct OnboardingView: View {
                         .controlSize(.large)
                     }
                 }
-                .padding(30)
+                .padding(.horizontal, 30)
+                .padding(.vertical, 16)
             }
         }
-        .frame(minWidth: 800, minHeight: 850)
+        .frame(width: 720, height: 820)
         .onAppear {
             requestCameraPermission()
         }
@@ -246,14 +250,15 @@ struct OnboardingView: View {
     }
 
     private var cameraCalibrationStep: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 12) {
             Text(appState.exerciseType == "sitToStand" ? "Camera & Calibration" : "Camera Setup")
-                .font(.largeTitle)
+                .font(.title)
                 .fontWeight(.bold)
 
             Text(appState.exerciseType == "sitToStand"
                  ? "Select your camera and calibrate your sitting/standing positions"
                  : "Select the camera you'll use for exercise tracking")
+                .font(.subheadline)
                 .foregroundColor(.secondary)
 
             // Camera preview with pose overlay
@@ -263,23 +268,23 @@ struct OnboardingView: View {
                         CameraPreviewView(cameraCapture: cameraCapture)
 
                         if showPoseOverlay {
-                            PoseOverlayView(pose: poseDetector.currentPose, imageSize: CGSize(width: 640, height: 480))
+                            PoseOverlayView(pose: poseDetector.currentPose, imageSize: CGSize(width: 520, height: 390))
                         }
                     }
-                    .frame(width: 640, height: 480)
-                    .cornerRadius(16)
+                    .frame(width: 520, height: 390)
+                    .cornerRadius(12)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 16)
+                        RoundedRectangle(cornerRadius: 12)
                             .stroke(borderColor, lineWidth: 3)
                     )
                 } else {
-                    RoundedRectangle(cornerRadius: 16)
+                    RoundedRectangle(cornerRadius: 12)
                         .fill(Color.black.opacity(0.8))
-                        .frame(width: 640, height: 480)
+                        .frame(width: 520, height: 390)
                         .overlay(
-                            VStack(spacing: 15) {
+                            VStack(spacing: 12) {
                                 Image(systemName: "camera.fill")
-                                    .font(.system(size: 60))
+                                    .font(.system(size: 50))
                                     .foregroundColor(.gray)
                                 Text("Starting camera...")
                                     .foregroundColor(.gray)
@@ -322,7 +327,7 @@ struct OnboardingView: View {
             // Calibration section (only for sit-to-stand)
             if appState.exerciseType == "sitToStand" {
                 Divider()
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 4)
 
                 // Calibration status
                 HStack(spacing: 20) {
@@ -351,15 +356,16 @@ struct OnboardingView: View {
                 if poseDetector.calibrationState != .notCalibrated &&
                    poseDetector.calibrationState != .calibrated {
                     // Active calibration in progress
-                    VStack(spacing: 12) {
+                    VStack(spacing: 8) {
                         Text(poseDetector.calibrationMessage)
-                            .font(.title2)
+                            .font(.headline)
                             .fontWeight(.medium)
                             .foregroundColor(.blue)
                             .multilineTextAlignment(.center)
-                            .padding()
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
                             .background(Color.blue.opacity(0.1))
-                            .cornerRadius(12)
+                            .cornerRadius(10)
 
                         Button("Cancel Calibration") {
                             poseDetector.cancelCalibration()
@@ -368,18 +374,14 @@ struct OnboardingView: View {
                         .tint(.red)
                     }
                 } else if poseDetector.isCalibrated {
-                    VStack(spacing: 12) {
+                    HStack(spacing: 16) {
                         Text("Calibration Complete!")
                             .font(.headline)
                             .foregroundColor(.green)
 
-                        HStack {
-                            Text("Sit Y: \(String(format: "%.3f", poseDetector.sittingHipY))")
-                            Text("|")
-                            Text("Stand Y: \(String(format: "%.3f", poseDetector.standingHipY))")
-                        }
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        Text("Sit Y: \(String(format: "%.3f", poseDetector.sittingHipY)) | Stand Y: \(String(format: "%.3f", poseDetector.standingHipY))")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
 
                         Button("Re-Calibrate") {
                             poseDetector.startCalibration()
@@ -387,9 +389,10 @@ struct OnboardingView: View {
                         .buttonStyle(.bordered)
                         .tint(.purple)
                     }
-                    .padding()
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
                     .background(Color.green.opacity(0.1))
-                    .cornerRadius(12)
+                    .cornerRadius(10)
                 } else {
                     Button("Start Calibration") {
                         poseDetector.startCalibration()
@@ -401,23 +404,25 @@ struct OnboardingView: View {
             } else {
                 // Non-calibration exercises - just show camera is ready
                 if cameraCapture.isCapturing && poseDetector.isPersonDetected {
-                    VStack(spacing: 8) {
+                    HStack(spacing: 8) {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 40))
+                            .font(.system(size: 24))
                             .foregroundColor(.green)
                         Text("Camera ready!")
                             .font(.headline)
                             .foregroundColor(.green)
                     }
-                    .padding()
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
                     .background(Color.green.opacity(0.1))
-                    .cornerRadius(12)
+                    .cornerRadius(10)
                 }
             }
 
-            Spacer()
+            Spacer(minLength: 0)
         }
-        .padding(40)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 16)
         .onAppear {
             cameraCapture.loadAvailableCameras()
             // Auto-start camera

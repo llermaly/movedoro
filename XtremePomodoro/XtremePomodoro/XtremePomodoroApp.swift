@@ -28,6 +28,7 @@ struct XtremePomodoroApp: App {
                     }
                 }
         }
+        .windowResizability(.contentSize)
         .windowStyle(.hiddenTitleBar)
         .commands {
             // Remove default quit command to prevent easy escape
