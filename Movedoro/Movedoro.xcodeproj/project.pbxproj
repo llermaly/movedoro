@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		AAA000001 /* XtremePomodoroApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA000010 /* XtremePomodoroApp.swift */; };
+		AAA000001 /* MovedoroApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA000010 /* MovedoroApp.swift */; };
 		AAA000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA000011 /* ContentView.swift */; };
 		AAA000003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AAA000012 /* Assets.xcassets */; };
 		AAA000008 /* CameraCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA000024 /* CameraCapture.swift */; };
@@ -31,6 +31,7 @@
 		CCC000006 /* MenuBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCC000015 /* MenuBarController.swift */; };
 		CCC000007 /* ScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCC000016 /* ScheduleView.swift */; };
 		DDD000001 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD000010 /* Constants.swift */; };
+		DDD000002 /* MenuBarPopoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD000011 /* MenuBarPopoverView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -46,13 +47,13 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		AAA000010 /* XtremePomodoroApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XtremePomodoroApp.swift; sourceTree = "<group>"; };
+		AAA000010 /* MovedoroApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MovedoroApp.swift; sourceTree = "<group>"; };
 		AAA000011 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		AAA000012 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		AAA000015 /* XtremePomodoro-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XtremePomodoro-Bridging-Header.h"; sourceTree = "<group>"; };
-		AAA000020 /* XtremePomodoro.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = XtremePomodoro.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AAA000015 /* Movedoro-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Movedoro-Bridging-Header.h"; sourceTree = "<group>"; };
+		AAA000020 /* Movedoro.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Movedoro.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AAA000021 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		AAA000022 /* XtremePomodoro.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = XtremePomodoro.entitlements; sourceTree = "<group>"; };
+		AAA000022 /* Movedoro.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Movedoro.entitlements; sourceTree = "<group>"; };
 		AAA000024 /* CameraCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraCapture.swift; sourceTree = "<group>"; };
 		AAA000025 /* PoseDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoseDetector.swift; sourceTree = "<group>"; };
 		AAA000026 /* SessionPhotoManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionPhotoManager.swift; sourceTree = "<group>"; };
@@ -75,6 +76,7 @@
 		CCC000015 /* MenuBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarController.swift; sourceTree = "<group>"; };
 		CCC000016 /* ScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleView.swift; sourceTree = "<group>"; };
 		DDD000010 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
+		DDD000011 /* MenuBarPopoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarPopoverView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -91,17 +93,17 @@
 		AAA000040 = {
 			isa = PBXGroup;
 			children = (
-				AAA000041 /* XtremePomodoro */,
+				AAA000041 /* Movedoro */,
 				AAA000042 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		AAA000041 /* XtremePomodoro */ = {
+		AAA000041 /* Movedoro */ = {
 			isa = PBXGroup;
 			children = (
 				BBB000020 /* Services */,
 				DDD000010 /* Constants.swift */,
-				AAA000010 /* XtremePomodoroApp.swift */,
+				AAA000010 /* MovedoroApp.swift */,
 				AAA000028 /* AppState.swift */,
 				AAA000029 /* PomodoroTimer.swift */,
 				AAA00002A /* PomodoroView.swift */,
@@ -121,19 +123,20 @@
 				CCC000013 /* DaySessionsView.swift */,
 				CCC000014 /* SessionDetailView.swift */,
 				CCC000015 /* MenuBarController.swift */,
+				DDD000011 /* MenuBarPopoverView.swift */,
 				CCC000016 /* ScheduleView.swift */,
 				AAA000012 /* Assets.xcassets */,
 				AAA000021 /* Info.plist */,
-				AAA000022 /* XtremePomodoro.entitlements */,
-				AAA000015 /* XtremePomodoro-Bridging-Header.h */,
+				AAA000022 /* Movedoro.entitlements */,
+				AAA000015 /* Movedoro-Bridging-Header.h */,
 			);
-			path = XtremePomodoro;
+			path = Movedoro;
 			sourceTree = "<group>";
 		};
 		AAA000042 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				AAA000020 /* XtremePomodoro.app */,
+				AAA000020 /* Movedoro.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -150,9 +153,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		AAA000050 /* XtremePomodoro */ = {
+		AAA000050 /* Movedoro */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = AAA000070 /* Build configuration list for PBXNativeTarget "XtremePomodoro" */;
+			buildConfigurationList = AAA000070 /* Build configuration list for PBXNativeTarget "Movedoro" */;
 			buildPhases = (
 				AAA000051 /* Sources */,
 				AAA000030 /* Frameworks */,
@@ -163,9 +166,9 @@
 			);
 			dependencies = (
 			);
-			name = XtremePomodoro;
-			productName = XtremePomodoro;
-			productReference = AAA000020 /* XtremePomodoro.app */;
+			name = Movedoro;
+			productName = Movedoro;
+			productReference = AAA000020 /* Movedoro.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -183,7 +186,7 @@
 					};
 				};
 			};
-			buildConfigurationList = AAA000061 /* Build configuration list for PBXProject "XtremePomodoro" */;
+			buildConfigurationList = AAA000061 /* Build configuration list for PBXProject "Movedoro" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -198,7 +201,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				AAA000050 /* XtremePomodoro */,
+				AAA000050 /* Movedoro */,
 			);
 		};
 /* End PBXProject section */
@@ -220,7 +223,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				DDD000001 /* Constants.swift in Sources */,
-				AAA000001 /* XtremePomodoroApp.swift in Sources */,
+				AAA000001 /* MovedoroApp.swift in Sources */,
 				AAA00000C /* AppState.swift in Sources */,
 				AAA00000D /* PomodoroTimer.swift in Sources */,
 				AAA00000E /* PomodoroView.swift in Sources */,
@@ -241,6 +244,7 @@
 				CCC000004 /* DaySessionsView.swift in Sources */,
 				CCC000005 /* SessionDetailView.swift in Sources */,
 				CCC000006 /* MenuBarController.swift in Sources */,
+				DDD000002 /* MenuBarPopoverView.swift in Sources */,
 				CCC000007 /* ScheduleView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -372,7 +376,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = XtremePomodoro/XtremePomodoro.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Movedoro/Movedoro.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -383,15 +387,15 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_RESOURCE_ACCESS_CAMERA = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = XtremePomodoro/Info.plist;
-				INFOPLIST_KEY_NSCameraUsageDescription = "XtremePomodoro needs camera access to track your exercises";
+				INFOPLIST_FILE = Movedoro/Info.plist;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Movedoro needs camera access to track your exercises";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.xtreme.pomodoro;
+				PRODUCT_BUNDLE_IDENTIFIER = com.movedoro.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -403,7 +407,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = XtremePomodoro/XtremePomodoro.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Movedoro/Movedoro.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -414,15 +418,15 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_RESOURCE_ACCESS_CAMERA = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = XtremePomodoro/Info.plist;
-				INFOPLIST_KEY_NSCameraUsageDescription = "XtremePomodoro needs camera access to track your exercises";
+				INFOPLIST_FILE = Movedoro/Info.plist;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Movedoro needs camera access to track your exercises";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.xtreme.pomodoro;
+				PRODUCT_BUNDLE_IDENTIFIER = com.movedoro.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -432,7 +436,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		AAA000061 /* Build configuration list for PBXProject "XtremePomodoro" */ = {
+		AAA000061 /* Build configuration list for PBXProject "Movedoro" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				AAA000062 /* Debug */,
@@ -441,7 +445,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		AAA000070 /* Build configuration list for PBXNativeTarget "XtremePomodoro" */ = {
+		AAA000070 /* Build configuration list for PBXNativeTarget "Movedoro" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				AAA000064 /* Debug */,

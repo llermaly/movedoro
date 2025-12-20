@@ -4,6 +4,7 @@ import AVFoundation
 // MARK: - TTS Service Protocol
 
 /// Protocol for text-to-speech services
+@MainActor
 protocol TTSService: AnyObject {
     /// Whether the service is currently speaking
     var isSpeaking: Bool { get }
@@ -27,8 +28,9 @@ extension TTSService {
 // MARK: - Native TTS Service
 
 /// TTS service using AVSpeechSynthesizer
+@MainActor
 final class NativeTTSService: NSObject, TTSService, AVSpeechSynthesizerDelegate {
-    private let synthesizer = AVSpeechSynthesizer()
+    private nonisolated(unsafe) let synthesizer = AVSpeechSynthesizer()
 
     /// The selected voice for speech synthesis
     private var selectedVoice: AVSpeechSynthesisVoice?
@@ -72,15 +74,15 @@ final class NativeTTSService: NSObject, TTSService, AVSpeechSynthesizerDelegate 
 
     // MARK: - AVSpeechSynthesizerDelegate
 
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
+    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
         print("TTS: Started")
     }
 
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
         print("TTS: Finished")
     }
 
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
+    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
         print("TTS: Cancelled")
     }
 

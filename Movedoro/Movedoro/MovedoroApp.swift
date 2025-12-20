@@ -2,7 +2,7 @@ import SwiftUI
 import AVFoundation
 
 @main
-struct XtremePomodoroApp: App {
+struct MovedoroApp: App {
     @StateObject private var appState = AppState()
     @StateObject private var pomodoroTimer = PomodoroTimer()
 
@@ -33,7 +33,7 @@ struct XtremePomodoroApp: App {
         .commands {
             // Remove default quit command to prevent easy escape
             CommandGroup(replacing: .appTermination) {
-                Button("Quit XtremePomodoro") {
+                Button("Quit Movedoro") {
                     if appState.showExerciseOverlay {
                         // During exercise, Cmd+Q is handled by the window controller
                         // This prevents the menu item from working
@@ -51,9 +51,10 @@ struct XtremePomodoroApp: App {
         pomodoroTimer.workDurationMinutes = appState.workDuration
         pomodoroTimer.breakDurationMinutes = appState.breakDuration
 
-        // When work session starts, record start time
+        // When work session starts, record start time and hide to menu bar
         pomodoroTimer.onWorkSessionStart = { [weak appState] in
             appState?.startWorkSession()
+            MenuBarController.shared.hideToMenuBarOnly()
         }
 
         // When work session completes, show exercise overlay

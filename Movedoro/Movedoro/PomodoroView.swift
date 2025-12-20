@@ -78,7 +78,7 @@ struct PomodoroView: View {
 
     private var toolbarView: some View {
         HStack {
-            Text("XtremePomodoro")
+            Text("Movedoro")
                 .font(.headline)
                 .foregroundStyle(.secondary)
 

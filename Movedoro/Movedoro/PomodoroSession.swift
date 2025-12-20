@@ -68,7 +68,7 @@ class SessionStore: ObservableObject {
 
     init() {
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let appFolder = documentsPath.appendingPathComponent("XtremePomodoro", isDirectory: true)
+        let appFolder = documentsPath.appendingPathComponent("Movedoro", isDirectory: true)
         sessionsFileURL = appFolder.appendingPathComponent("sessions.json")
 
         // Ensure directory exists

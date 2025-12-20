@@ -144,29 +144,71 @@ class ExerciseWindowController: NSObject, ObservableObject {
     }
 
     private func showQuitConfirmation() {
-        // Temporarily lower window level to show alert
-        let previousLevel = window?.level ?? .screenSaver
-        window?.level = .normal
+        // Instead of quitting, just hide the exercise window
+        // The timer continues running in the background
+        hideExerciseWindow()
+    }
 
-        let alert = NSAlert()
-        alert.messageText = "Quit XtremePomodoro?"
-        alert.informativeText = "Are you sure you want to quit? You haven't finished your exercise yet!\n\nPress Cmd+Q again to confirm quit."
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: "Keep Exercising")
-        alert.addButton(withTitle: "Quit Anyway")
-
-        let response = alert.runModal()
-
-        if response == .alertSecondButtonReturn {
-            // User chose to quit
-            dismissExerciseWindow()
-            NSApp.terminate(nil)
-        } else {
-            // Restore window level
-            window?.level = previousLevel
-            window?.makeKeyAndOrderFront(nil)
-            window?.orderFrontRegardless()
+    /// Hide the exercise window without stopping the timer
+    /// User can resume by clicking the menu bar
+    func hideExerciseWindow() {
+        guard window != nil else {
+            print("[ExerciseWindow] No window to hide")
+            return
         }
+
+        print("[ExerciseWindow] Hiding exercise window (timer continues)")
+
+        // Restore normal presentation
+        NSApp.presentationOptions = []
+
+        // Show cursor
+        NSCursor.unhide()
+
+        // Remove keyboard monitor
+        removeKeyboardMonitor()
+
+        // Hide the window instead of closing it
+        window?.orderOut(nil)
+
+        // Hide from Dock - only accessible via menu bar
+        NSApp.setActivationPolicy(.accessory)
+
+        // Keep window reference so we can show it again
+        // Note: appState reference is kept too
+    }
+
+    /// Show the exercise window again after it was hidden
+    func resumeExerciseWindow() {
+        guard let panel = window else {
+            print("[ExerciseWindow] No window to resume")
+            return
+        }
+
+        print("[ExerciseWindow] Resuming exercise window")
+
+        // Restore to regular app (shows in Dock)
+        NSApp.setActivationPolicy(.regular)
+
+        // Re-setup keyboard monitoring
+        setupKeyboardMonitor()
+
+        // Hide dock and menu bar again
+        NSApp.presentationOptions = [.hideDock, .hideMenuBar, .disableProcessSwitching]
+
+        // Show the window again
+        panel.makeKeyAndOrderFront(nil)
+        panel.orderFrontRegardless()
+    }
+
+    /// Check if exercise window is currently hidden but not dismissed
+    var isHidden: Bool {
+        return window != nil && !(window?.isVisible ?? true)
+    }
+
+    /// Check if exercise window exists (visible or hidden)
+    var isActive: Bool {
+        return window != nil
     }
 }
 

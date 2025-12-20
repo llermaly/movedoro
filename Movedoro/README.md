@@ -1,4 +1,4 @@
-# XtremePomodoro
+# Movedoro
 
 A Pomodoro timer that forces you to exercise during breaks - because sometimes we need tough love to stay healthy.
 
@@ -46,7 +46,7 @@ I created this app for myself because I'm very sedentary and I fear for my healt
 
 ## Setup
 
-1. Launch XtremePomodoro
+1. Launch Movedoro
 2. Complete the one-time calibration for your exercise
 3. Set your Pomodoro intervals
 4. Start working!

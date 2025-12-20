@@ -23,11 +23,11 @@
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>NSCameraUsageDescription</key>
-	<string>XtremePomodoro needs camera access to track your exercises and verify workout completion.</string>
+	<string>Movedoro needs camera access to track your exercises and verify workout completion.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>XtremePomodoro needs microphone access for voice commands and interaction with your trainer.</string>
+	<string>Movedoro needs microphone access for voice commands and interaction with your trainer.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>XtremePomodoro uses speech recognition to understand your voice commands during workouts.</string>
+	<string>Movedoro uses speech recognition to understand your voice commands during workouts.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright 2024. All rights reserved.</string>
 	<key>NSPrincipalClass</key>

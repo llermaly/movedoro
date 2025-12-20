@@ -86,7 +86,7 @@ struct ContentView: View {
             // Right side - Controls
             ScrollView {
                 VStack(spacing: 20) {
-                    Text("XtremePomodoro")
+                    Text("Movedoro")
                         .font(.largeTitle)
                         .fontWeight(.bold)
 

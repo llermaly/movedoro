@@ -34,7 +34,7 @@ class SessionPhotoManager: ObservableObject {
 
         // Create session directory
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let sessionsPath = documentsPath.appendingPathComponent("XtremePomodoro/Sessions", isDirectory: true)
+        let sessionsPath = documentsPath.appendingPathComponent("Movedoro/Sessions", isDirectory: true)
 
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"

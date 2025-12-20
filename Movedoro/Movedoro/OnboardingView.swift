@@ -77,7 +77,7 @@ struct OnboardingView: View {
 
     private var headerView: some View {
         VStack(spacing: 8) {
-            Text("Setup XtremePomodoro")
+            Text("Setup Movedoro")
                 .font(.headline)
                 .foregroundStyle(.secondary)
 
@@ -203,7 +203,7 @@ struct OnboardingView: View {
                 .font(.system(size: 100))
                 .foregroundStyle(Color.workAccent)
 
-            Text("Welcome to XtremePomodoro")
+            Text("Welcome to Movedoro")
                 .font(.largeTitle)
                 .fontWeight(.bold)
 
