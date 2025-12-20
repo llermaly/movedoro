@@ -135,6 +135,16 @@ struct ExerciseOverlayView: View {
                     if showPoseOverlay {
                         PoseOverlayView(pose: poseDetector.currentPose, imageSize: CGSize(width: 800, height: 600))
                     }
+
+                    // Gesture hold progress indicator
+                    if poseDetector.gestureHoldProgress > 0 {
+                        gestureProgressIndicator
+                    }
+
+                    // Completion overlay with big button
+                    if isComplete {
+                        completionOverlay
+                    }
                 }
                 .frame(maxWidth: Constants.cameraPreviewMaxWidth, maxHeight: Constants.cameraPreviewMaxHeight)
                 .clipShape(RoundedRectangle(cornerRadius: Constants.cameraPreviewCornerRadius))
@@ -150,6 +160,62 @@ struct ExerciseOverlayView: View {
                     lineWidth: 3
                 )
         )
+    }
+
+    private var gestureProgressIndicator: some View {
+        VStack {
+            Spacer()
+            HStack {
+                Spacer()
+                ZStack {
+                    // Background circle
+                    Circle()
+                        .stroke(Color.white.opacity(0.3), lineWidth: 8)
+                        .frame(width: 80, height: 80)
+
+                    // Progress circle
+                    Circle()
+                        .trim(from: 0, to: poseDetector.gestureHoldProgress)
+                        .stroke(Color.cyan, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                        .frame(width: 80, height: 80)
+                        .rotationEffect(.degrees(-90))
+
+                    // Countdown text
+                    Text("\(max(1, Int(ceil(2.0 * (1.0 - poseDetector.gestureHoldProgress)))))")
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                }
+                .padding(30)
+            }
+        }
+    }
+
+    private var completionOverlay: some View {
+        ZStack {
+            // Semi-transparent background
+            Color.black.opacity(0.7)
+
+            VStack(spacing: 20) {
+                Text("Great job!")
+                    .font(.system(size: 48, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.breakAccent)
+
+                Text("\(repsCompleted) reps completed")
+                    .font(.title2)
+                    .foregroundStyle(.white.opacity(0.8))
+
+                Button(action: { completeExercise() }) {
+                    Label("Continue Working", systemImage: "arrow.right.circle.fill")
+                        .font(.system(size: 28, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 40)
+                        .padding(.vertical, 20)
+                        .background(Color.breakAccent)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 
     private var cameraPlaceholder: some View {
@@ -490,6 +556,7 @@ struct ExerciseOverlayView: View {
         let positionPercent = poseDetector.currentPose.flatMap { poseDetector.getPositionPercent($0) }
         let inSitting = poseDetector.currentPose.map { poseDetector.isInSittingZone($0) } ?? false
         let inStanding = poseDetector.currentPose.map { poseDetector.isInStandingZone($0) } ?? false
+        let pose = poseDetector.currentPose
 
         return VStack(alignment: .leading, spacing: 8) {
             Text("CALIBRATION DEBUG")
@@ -497,6 +564,25 @@ struct ExerciseOverlayView: View {
                 .foregroundStyle(.yellow)
 
             HStack(spacing: 20) {
+                // Joints detection status
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("JOINTS").font(.caption2).foregroundStyle(.gray)
+                    HStack(spacing: 4) {
+                        jointIndicator("LH", detected: pose?.joints[.leftHip] != nil)
+                        jointIndicator("RH", detected: pose?.joints[.rightHip] != nil)
+                    }
+                    HStack(spacing: 4) {
+                        jointIndicator("LS", detected: pose?.joints[.leftShoulder] != nil)
+                        jointIndicator("RS", detected: pose?.joints[.rightShoulder] != nil)
+                    }
+                    HStack(spacing: 4) {
+                        jointIndicator("LW", detected: pose?.joints[.leftWrist] != nil)
+                        jointIndicator("RW", detected: pose?.joints[.rightWrist] != nil)
+                    }
+                }
+
+                Divider().frame(height: 60)
+
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
                         Circle()
@@ -506,9 +592,14 @@ struct ExerciseOverlayView: View {
                     }
                     Text("State: \(String(describing: poseDetector.calibrationState))")
                         .font(.caption)
+                    if pose?.handsCloseTogether == true {
+                        Text("Hands Together!")
+                            .foregroundStyle(.cyan)
+                            .fontWeight(.bold)
+                    }
                 }
 
-                Divider().frame(height: 50)
+                Divider().frame(height: 60)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Sit Y: \(String(format: "%.4f", poseDetector.sittingHipY))")
@@ -516,14 +607,17 @@ struct ExerciseOverlayView: View {
                     Text("Range: \(String(format: "%.4f", poseDetector.standingHipY - poseDetector.sittingHipY))")
                 }
 
-                Divider().frame(height: 50)
+                Divider().frame(height: 60)
 
                 VStack(alignment: .leading, spacing: 4) {
                     if let hipY = currentHipY {
                         Text("Current Y: \(String(format: "%.4f", hipY))")
                             .fontWeight(.bold)
+                            .foregroundStyle(.green)
                     } else {
-                        Text("Current Y: --")
+                        Text("Current Y: -- (NO HIPS!)")
+                            .foregroundStyle(.red)
+                            .fontWeight(.bold)
                     }
 
                     if let percent = positionPercent {
@@ -544,7 +638,7 @@ struct ExerciseOverlayView: View {
                     }
                 }
 
-                Divider().frame(height: 50)
+                Divider().frame(height: 60)
 
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
@@ -563,7 +657,7 @@ struct ExerciseOverlayView: View {
                     }
                 }
 
-                Divider().frame(height: 50)
+                Divider().frame(height: 60)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Exercise: \(poseDetector.currentExercise.rawValue)")
@@ -585,6 +679,16 @@ struct ExerciseOverlayView: View {
                 .strokeBorder(Color.yellow.opacity(0.5), lineWidth: 1)
         )
         .foregroundStyle(.white)
+    }
+
+    private func jointIndicator(_ label: String, detected: Bool) -> some View {
+        Text(label)
+            .font(.system(size: 10, weight: .bold, design: .monospaced))
+            .padding(.horizontal, 4)
+            .padding(.vertical, 2)
+            .background(detected ? Color.green : Color.red.opacity(0.7))
+            .foregroundStyle(.white)
+            .clipShape(RoundedRectangle(cornerRadius: 3))
     }
     #endif
 }

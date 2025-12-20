@@ -95,6 +95,34 @@ struct DetectedPose {
         return leftWristNearHip && rightWristNearHip && wristsSpreadApart
     }
 
+    /// Check if hands are close together (e.g., clasped or prayer position)
+    var handsCloseTogether: Bool {
+        guard let leftWrist = joints[.leftWrist],
+              let rightWrist = joints[.rightWrist],
+              let leftShoulder = joints[.leftShoulder],
+              let rightShoulder = joints[.rightShoulder] else {
+            return false
+        }
+
+        // Calculate shoulder width as reference for "close"
+        let shoulderWidth = abs(leftShoulder.x - rightShoulder.x)
+
+        // Wrists should be close horizontally (within 30% of shoulder width)
+        let wristHorizontalDistance = abs(leftWrist.x - rightWrist.x)
+        let wristsCloseHorizontally = wristHorizontalDistance < shoulderWidth * 0.3
+
+        // Wrists should be at similar height (within 20% of shoulder width)
+        let wristVerticalDistance = abs(leftWrist.y - rightWrist.y)
+        let wristsCloseVertically = wristVerticalDistance < shoulderWidth * 0.2
+
+        // Wrists should be in front of body (between shoulders horizontally)
+        let bodyCenter = (leftShoulder.x + rightShoulder.x) / 2
+        let wristsCenter = (leftWrist.x + rightWrist.x) / 2
+        let wristsCentered = abs(wristsCenter - bodyCenter) < shoulderWidth * 0.4
+
+        return wristsCloseHorizontally && wristsCloseVertically && wristsCentered
+    }
+
     /// Check if in squat position
     var isSquatting: Bool {
         guard let leftHip = joints[.leftHip],
@@ -177,8 +205,11 @@ class PoseDetector: ObservableObject {
     private var armsWereRaised: Bool = false
     private var gestureResetRequired: Bool = false
     private var gestureReleaseStartTime: Date? = nil
-    private let gestureHoldDuration: TimeInterval = 1.5
+    private let gestureHoldDuration: TimeInterval = 2.0
     private let gestureReleaseDuration: TimeInterval = 0.5
+
+    // Gesture hold progress for UI (0.0 to 1.0)
+    @Published var gestureHoldProgress: Double = 0.0
 
     private var sittingStartTime: Date? = nil
     private let sittingHoldDuration: TimeInterval = 0.3
@@ -471,10 +502,10 @@ class PoseDetector: ObservableObject {
 
     func startCalibration() {
         calibrationState = .waitingForReady
-        calibrationMessage = "Put hands on hips to start"
+        calibrationMessage = "Put hands together for 2 seconds"
         resetGestureState()
         gestureResetRequired = false
-        speak("Put your hands on your hips to begin calibration")
+        speak("Put your hands together and hold for 2 seconds")
     }
 
     func cancelCalibration() {
@@ -489,10 +520,10 @@ class PoseDetector: ObservableObject {
             return
         }
 
-        let handsCurrentlyOnHips = pose.handsOnHips
+        let gestureDetected = pose.handsCloseTogether
 
         if gestureResetRequired {
-            if !handsCurrentlyOnHips {
+            if !gestureDetected {
                 if gestureReleaseStartTime == nil {
                     gestureReleaseStartTime = Date()
                 } else if let releaseStart = gestureReleaseStartTime,
@@ -508,19 +539,31 @@ class PoseDetector: ObservableObject {
             return
         }
 
-        if handsCurrentlyOnHips {
+        if gestureDetected {
             if armsRaisedStartTime == nil {
                 armsRaisedStartTime = Date()
-            } else if let startTime = armsRaisedStartTime,
-                      Date().timeIntervalSince(startTime) >= gestureHoldDuration,
-                      !armsWereRaised {
-                armsWereRaised = true
-                handleCalibrationGesture(pose)
+            }
+
+            if let startTime = armsRaisedStartTime {
+                let elapsed = Date().timeIntervalSince(startTime)
+                gestureHoldProgress = min(1.0, elapsed / gestureHoldDuration)
+
+                if elapsed >= gestureHoldDuration && !armsWereRaised {
+                    armsWereRaised = true
+                    gestureHoldProgress = 0.0
+                    handleCalibrationGesture(pose)
+                }
             }
         } else {
             armsRaisedStartTime = nil
             armsWereRaised = false
+            gestureHoldProgress = 0.0
         }
+    }
+
+    /// Returns true if the calibration gesture is currently being held
+    var isCalibrationGestureHeld: Bool {
+        armsRaisedStartTime != nil && !gestureResetRequired
     }
 
     private func handleCalibrationGesture(_ pose: DetectedPose) {
@@ -530,8 +573,8 @@ class PoseDetector: ObservableObject {
         case .waitingForReady:
             playBeep()
             calibrationState = .waitingForSit
-            calibrationMessage = "Release hands, sit down, then hands on hips"
-            speak("Good! Release your hands, sit down on your poof, then put hands on hips again")
+            calibrationMessage = "Sit down, then hands together for 2 seconds"
+            speak("Good! Sit down, then hold hands together for 2 seconds")
             resetGestureState()
             gestureResetRequired = true
 
@@ -539,8 +582,8 @@ class PoseDetector: ObservableObject {
             playBeep()
             sittingHipY = hipY
             calibrationState = .waitingForStand
-            calibrationMessage = "Sitting saved! Release, stand up, hands on hips"
-            speak("Sitting position saved. Release your hands, stand up, then put hands on hips again")
+            calibrationMessage = "Stand up, then hands together for 2 seconds"
+            speak("Sitting saved! Stand up, then hold hands together for 2 seconds")
             resetGestureState()
             gestureResetRequired = true
 
@@ -570,18 +613,20 @@ class PoseDetector: ObservableObject {
         guard isCalibrated, let hipY = pose.hipY else { return false }
 
         let range = abs(standingHipY - sittingHipY)
-        let sittingThreshold = sittingHipY + (range * (1 - hysteresisPercent))
+        // Sitting = higher Y value (lower in frame), threshold moves toward standing
+        let sittingThreshold = sittingHipY - (range * (1 - hysteresisPercent))
 
-        return hipY <= sittingThreshold
+        return hipY >= sittingThreshold
     }
 
     func isInStandingZone(_ pose: DetectedPose) -> Bool {
         guard isCalibrated, let hipY = pose.hipY else { return false }
 
         let range = abs(standingHipY - sittingHipY)
-        let standingThreshold = standingHipY - (range * (1 - hysteresisPercent))
+        // Standing = lower Y value (higher in frame), threshold moves toward sitting
+        let standingThreshold = standingHipY + (range * (1 - hysteresisPercent))
 
-        return hipY >= standingThreshold
+        return hipY <= standingThreshold
     }
 
     func getPositionPercent(_ pose: DetectedPose) -> CGFloat? {
@@ -606,6 +651,9 @@ class PoseDetector: ObservableObject {
         if pose.handsOnHips {
             descriptions.append("Hands on Hips")
         }
+        if pose.handsCloseTogether {
+            descriptions.append("Hands Together")
+        }
         if pose.armsRaised {
             descriptions.append("Arms Up")
         }
@@ -629,11 +677,23 @@ class PoseDetector: ObservableObject {
         }
     }
 
+    // Audio feedback for exercise
+    var audioFeedbackEnabled: Bool = true
+    private var hasAnnouncedReady: Bool = false
+
     private func trackSitToStand(_ pose: DetectedPose) {
         guard isCalibrated else { return }
+        guard pose.hipY != nil else { return }
 
         let inSittingZone = isInSittingZone(pose)
         let inStandingZone = isInStandingZone(pose)
+        let previousState = exerciseState
+
+        // Announce "ready" once when first in standing position
+        if inStandingZone && !hasAnnouncedReady && exerciseState == .standing {
+            hasAnnouncedReady = true
+            speak("ready")
+        }
 
         switch exerciseState {
         case .standing:
@@ -689,6 +749,29 @@ class PoseDetector: ObservableObject {
                 sittingStartTime = Date()
             }
         }
+
+        // Audio feedback for state changes
+        if audioFeedbackEnabled && exerciseState != previousState {
+            announceStateChange(from: previousState, to: exerciseState)
+        }
+    }
+
+    private func announceStateChange(from oldState: ExerciseState, to newState: ExerciseState) {
+        switch newState {
+        case .standing:
+            // Rep count is already spoken, no need for extra audio
+            break
+        case .goingDown:
+            speak("down")
+        case .holdingSit:
+            speak("hold")
+        case .sitting:
+            // Beep already plays here
+            break
+        case .goingUp:
+            // Skip "up" - the rep count will be spoken right after
+            break
+        }
     }
 
     private func trackSimpleExercise(_ pose: DetectedPose) {
@@ -719,6 +802,7 @@ class PoseDetector: ObservableObject {
         exerciseState = .standing
         sittingStartTime = nil
         sittingPhotoCaptured = false
+        hasAnnouncedReady = false
     }
 
     #if DEBUG

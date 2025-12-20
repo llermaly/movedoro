@@ -364,7 +364,7 @@ struct OnboardingView: View {
     // MARK: - Step 2: Exercise
 
     private var exerciseStep: some View {
-        VStack(spacing: 30) {
+        VStack(spacing: 24) {
             Text("Choose Your Exercise")
                 .font(.largeTitle)
                 .fontWeight(.bold)
@@ -372,7 +372,7 @@ struct OnboardingView: View {
             Text("Select the exercise you want to do during breaks")
                 .foregroundStyle(.secondary)
 
-            VStack(spacing: 15) {
+            VStack(spacing: 12) {
                 ExerciseOption(
                     title: "Sit-to-Stand",
                     description: "Stand up from sitting position. Great for desk workers. Requires calibration.",
@@ -413,6 +413,30 @@ struct OnboardingView: View {
                     appState.exerciseType = "armRaises"
                 }
             }
+            .frame(maxWidth: 500)
+
+            // Reps configuration
+            VStack(spacing: 12) {
+                Label("Reps per Break", systemImage: "number")
+                    .font(.headline)
+
+                HStack(spacing: 12) {
+                    ForEach([5, 10, 15, 20, 25, 30], id: \.self) { reps in
+                        Button("\(reps)") {
+                            appState.repsRequired = reps
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(appState.repsRequired == reps ? Color.workAccent : .secondary)
+                    }
+                }
+
+                Text("You'll need to complete \(appState.repsRequired) reps to finish each break")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(Constants.cardPadding)
+            .glassEffect(.regular, in: .rect(cornerRadius: Constants.cardCornerRadius))
+            .glassEffectID("repsSettings", in: glassNamespace)
             .frame(maxWidth: 500)
 
             Spacer()
