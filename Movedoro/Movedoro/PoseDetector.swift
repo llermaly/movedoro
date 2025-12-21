@@ -310,17 +310,28 @@ class PoseDetector: ObservableObject {
         }
     }
 
-    // MARK: - 2D Pose Detection (New Swift API)
+    // MARK: - 2D Pose Detection
 
     private func detect2DPose(in pixelBuffer: CVPixelBuffer) async throws -> DetectedPose? {
+        if #available(macOS 26.0, *) {
+            return try await detect2DPoseModern(in: pixelBuffer)
+        } else {
+            return try await detect2DPoseLegacy(in: pixelBuffer)
+        }
+    }
+
+    // Modern API (macOS 26+)
+    @available(macOS 26.0, *)
+    private func detect2DPoseModern(in pixelBuffer: CVPixelBuffer) async throws -> DetectedPose? {
         let request = DetectHumanBodyPoseRequest()
         let results = try await request.perform(on: pixelBuffer)
 
         guard let observation = results.first else { return nil }
-        return extractPose2D(from: observation)
+        return extractPose2DModern(from: observation)
     }
 
-    private func extractPose2D(from observation: HumanBodyPoseObservation) -> DetectedPose {
+    @available(macOS 26.0, *)
+    private func extractPose2DModern(from observation: HumanBodyPoseObservation) -> DetectedPose {
         var pose = DetectedPose()
         pose.confidence = observation.confidence
         pose.is3D = false
@@ -333,7 +344,7 @@ class PoseDetector: ObservableObject {
             for (jointName, joint) in jointsInGroup {
                 if joint.confidence > 0.3 {
                     let point = joint.location.verticallyFlipped().cgPoint
-                    if let unifiedName = mapJointName2D(jointName) {
+                    if let unifiedName = mapJointName2DModern(jointName) {
                         pose.joints[unifiedName] = point
                     }
                 }
@@ -343,7 +354,8 @@ class PoseDetector: ObservableObject {
         return pose
     }
 
-    private func mapJointName2D(_ jointName: HumanBodyPoseObservation.JointName) -> UnifiedJointName? {
+    @available(macOS 26.0, *)
+    private func mapJointName2DModern(_ jointName: HumanBodyPoseObservation.JointName) -> UnifiedJointName? {
         switch jointName {
         case .nose: return .nose
         case .leftEye: return .leftEye
@@ -368,17 +380,105 @@ class PoseDetector: ObservableObject {
         }
     }
 
-    // MARK: - 3D Pose Detection (New Swift API)
+    // Legacy API (macOS 14-25)
+    private func detect2DPoseLegacy(in pixelBuffer: CVPixelBuffer) async throws -> DetectedPose? {
+        return try await withCheckedThrowingContinuation { continuation in
+            let request = VNDetectHumanBodyPoseRequest { request, error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+
+                guard let observations = request.results as? [VNHumanBodyPoseObservation],
+                      let observation = observations.first else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                let pose = self.extractPose2DLegacy(from: observation)
+                continuation.resume(returning: pose)
+            }
+
+            let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, options: [:])
+            do {
+                try handler.perform([request])
+            } catch {
+                continuation.resume(throwing: error)
+            }
+        }
+    }
+
+    private func extractPose2DLegacy(from observation: VNHumanBodyPoseObservation) -> DetectedPose {
+        var pose = DetectedPose()
+        pose.confidence = Float(observation.confidence)
+        pose.is3D = false
+
+        // Get all recognized points
+        guard let recognizedPoints = try? observation.recognizedPoints(.all) else {
+            return pose
+        }
+
+        for (jointName, point) in recognizedPoints {
+            if point.confidence > 0.3 {
+                let cgPoint = CGPoint(x: point.location.x, y: 1 - point.location.y) // Flip Y
+                if let unifiedName = mapJointName2DLegacy(jointName) {
+                    pose.joints[unifiedName] = cgPoint
+                }
+            }
+        }
+
+        return pose
+    }
+
+    private func mapJointName2DLegacy(_ jointName: VNHumanBodyPoseObservation.JointName) -> UnifiedJointName? {
+        switch jointName {
+        case .nose: return .nose
+        case .leftEye: return .leftEye
+        case .rightEye: return .rightEye
+        case .leftEar: return .leftEar
+        case .rightEar: return .rightEar
+        case .leftShoulder: return .leftShoulder
+        case .rightShoulder: return .rightShoulder
+        case .leftElbow: return .leftElbow
+        case .rightElbow: return .rightElbow
+        case .leftWrist: return .leftWrist
+        case .rightWrist: return .rightWrist
+        case .leftHip: return .leftHip
+        case .rightHip: return .rightHip
+        case .leftKnee: return .leftKnee
+        case .rightKnee: return .rightKnee
+        case .leftAnkle: return .leftAnkle
+        case .rightAnkle: return .rightAnkle
+        case .neck: return .neck
+        case .root: return .root
+        default: return nil
+        }
+    }
+
+    // MARK: - 3D Pose Detection
 
     private func detect3DPose(in pixelBuffer: CVPixelBuffer) async throws -> DetectedPose? {
+        // 3D pose detection is only available on macOS 26+
+        // Fall back to 2D detection on older systems
+        if #available(macOS 26.0, *) {
+            return try await detect3DPoseModern(in: pixelBuffer)
+        } else {
+            // Fall back to 2D detection on older macOS
+            return try await detect2DPoseLegacy(in: pixelBuffer)
+        }
+    }
+
+    @available(macOS 26.0, *)
+    private func detect3DPoseModern(in pixelBuffer: CVPixelBuffer) async throws -> DetectedPose? {
         let request = DetectHumanBodyPose3DRequest()
         let results = try await request.perform(on: pixelBuffer)
 
         guard let observation = results.first else { return nil }
-        return try extractPose3D(from: observation)
+        return try extractPose3DModern(from: observation)
     }
 
-    private func extractPose3D(from observation: HumanBodyPose3DObservation) throws -> DetectedPose {
+    @available(macOS 26.0, *)
+    private func extractPose3DModern(from observation: HumanBodyPose3DObservation) throws -> DetectedPose {
         var pose = DetectedPose()
         pose.confidence = observation.confidence
         pose.is3D = true
@@ -392,7 +492,7 @@ class PoseDetector: ObservableObject {
         for groupName in jointGroups {
             let jointsInGroup = observation.allJoints(in: groupName)
             for (jointName, joint) in jointsInGroup {
-                if let unifiedName = mapJointName3D(jointName) {
+                if let unifiedName = mapJointName3DModern(jointName) {
                     // Get 2D projection for screen display
                     if let point2D = try? observation.pointInImage(for: jointName) {
                         pose.joints[unifiedName] = CGPoint(
@@ -420,7 +520,8 @@ class PoseDetector: ObservableObject {
         return pose
     }
 
-    private func mapJointName3D(_ jointName: HumanBodyPose3DObservation.JointName) -> UnifiedJointName? {
+    @available(macOS 26.0, *)
+    private func mapJointName3DModern(_ jointName: HumanBodyPose3DObservation.JointName) -> UnifiedJointName? {
         switch jointName {
         case .topHead: return .topHead
         case .centerHead: return .centerHead
@@ -1028,8 +1129,9 @@ extension CGImage {
     }
 }
 
-// MARK: - NormalizedPoint Extension
+// MARK: - NormalizedPoint Extension (macOS 26+)
 
+@available(macOS 26.0, *)
 extension NormalizedPoint {
     func verticallyFlipped() -> NormalizedPoint {
         NormalizedPoint(x: self.x, y: 1 - self.y)
