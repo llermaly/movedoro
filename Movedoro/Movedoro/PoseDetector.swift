@@ -98,27 +98,42 @@ struct DetectedPose {
     /// Check if hands are close together (e.g., clasped or prayer position)
     var handsCloseTogether: Bool {
         guard let leftWrist = joints[.leftWrist],
-              let rightWrist = joints[.rightWrist],
-              let leftShoulder = joints[.leftShoulder],
-              let rightShoulder = joints[.rightShoulder] else {
+              let rightWrist = joints[.rightWrist] else {
             return false
         }
 
-        // Calculate shoulder width as reference for "close"
-        let shoulderWidth = abs(leftShoulder.x - rightShoulder.x)
+        // Try to get a reference width - prefer shoulders, fallback to hips
+        let referenceWidth: CGFloat
+        let bodyCenter: CGFloat
 
-        // Wrists should be close horizontally (within 30% of shoulder width)
+        if let leftShoulder = joints[.leftShoulder],
+           let rightShoulder = joints[.rightShoulder] {
+            referenceWidth = abs(leftShoulder.x - rightShoulder.x)
+            bodyCenter = (leftShoulder.x + rightShoulder.x) / 2
+        } else if let leftHip = joints[.leftHip],
+                  let rightHip = joints[.rightHip] {
+            // Fallback: use hip width (slightly narrower than shoulders typically)
+            referenceWidth = abs(leftHip.x - rightHip.x) * 1.2
+            bodyCenter = (leftHip.x + rightHip.x) / 2
+        } else {
+            // Last resort: use absolute distance threshold (normalized coordinates 0-1)
+            let wristDistance = abs(leftWrist.x - rightWrist.x)
+            let verticalDistance = abs(leftWrist.y - rightWrist.y)
+            // Wrists within ~15% of screen width and similar height
+            return wristDistance < 0.15 && verticalDistance < 0.1
+        }
+
+        // Wrists should be close horizontally (within 50% of reference width - more lenient)
         let wristHorizontalDistance = abs(leftWrist.x - rightWrist.x)
-        let wristsCloseHorizontally = wristHorizontalDistance < shoulderWidth * 0.3
+        let wristsCloseHorizontally = wristHorizontalDistance < referenceWidth * 0.5
 
-        // Wrists should be at similar height (within 20% of shoulder width)
+        // Wrists should be at similar height (within 40% of reference width - more lenient)
         let wristVerticalDistance = abs(leftWrist.y - rightWrist.y)
-        let wristsCloseVertically = wristVerticalDistance < shoulderWidth * 0.2
+        let wristsCloseVertically = wristVerticalDistance < referenceWidth * 0.4
 
         // Wrists should be in front of body (between shoulders horizontally)
-        let bodyCenter = (leftShoulder.x + rightShoulder.x) / 2
         let wristsCenter = (leftWrist.x + rightWrist.x) / 2
-        let wristsCentered = abs(wristsCenter - bodyCenter) < shoulderWidth * 0.4
+        let wristsCentered = abs(wristsCenter - bodyCenter) < referenceWidth * 0.5
 
         return wristsCloseHorizontally && wristsCloseVertically && wristsCentered
     }
@@ -264,7 +279,14 @@ class PoseDetector: ObservableObject {
 
             if let pose = pose {
                 self.currentPose = pose
+
+                // Play sound when person first detected
+                if !self.wasPersonDetected {
+                    self.playPersonDetectedSound()
+                }
+                self.wasPersonDetected = true
                 self.isPersonDetected = true
+
                 self.updatePoseDescription(pose)
                 self.processCalibration(pose)
                 self.trackExercise(pose)
@@ -282,12 +304,14 @@ class PoseDetector: ObservableObject {
                     self.cameraDistance = "--"
                 }
             } else {
+                self.wasPersonDetected = false
                 self.isPersonDetected = false
                 self.currentPose = nil
                 self.poseDescription = "No person detected"
             }
         } catch {
             print("Pose detection error: \(error)")
+            self.wasPersonDetected = false
             self.isPersonDetected = false
             self.currentPose = nil
             self.poseDescription = "Detection error"
@@ -584,12 +608,32 @@ class PoseDetector: ObservableObject {
 
     // MARK: - Audio Feedback
 
+    // Track previous states for audio feedback
+    private var wasPersonDetected: Bool = false
+    private var wasGestureHeld: Bool = false
+
     private func speak(_ text: String) {
         ttsService.speak(text)
     }
 
     private func playBeep() {
         NSSound.beep()
+    }
+
+    private func playSound(_ name: String) {
+        if let sound = NSSound(named: NSSound.Name(name)) {
+            sound.play()
+        } else {
+            NSSound.beep()
+        }
+    }
+
+    private func playPersonDetectedSound() {
+        playSound("Pop")
+    }
+
+    private func playGestureStartSound() {
+        playSound("Tink")
     }
 
     var isSpeaking: Bool {
@@ -644,6 +688,8 @@ class PoseDetector: ObservableObject {
         if gestureDetected {
             if armsRaisedStartTime == nil {
                 armsRaisedStartTime = Date()
+                // Play sound when hands-together gesture starts
+                playGestureStartSound()
             }
 
             if let startTime = armsRaisedStartTime {

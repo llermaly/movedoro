@@ -41,7 +41,7 @@ jobs:
       - name: Extract latest changes from Release_Notes.md
         id: latest_changes
         run: |
-          python3 ./Configuration/generate_latest_changes.py
+          python3 ./scripts/generate_latest_changes.py
           echo "new_version=$(cat new_version)" >> $GITHUB_OUTPUT
           echo "old_version=$(cat old_version)" >> $GITHUB_OUTPUT
           echo "title=$(cat title)" >> $GITHUB_OUTPUT
@@ -106,7 +106,7 @@ jobs:
           xcodebuild -exportArchive \
             -archivePath ${{ runner.temp }}/${{ env.PROJNAME }}.xcarchive \
             -exportPath ${{ runner.temp }}/Release \
-            -exportOptionsPlist Configuration/export_options.plist
+            -exportOptionsPlist scripts/export_options.plist
 
       - name: Create ZIP for Sparkle
         run: |
@@ -123,7 +123,7 @@ jobs:
       - name: Generate release notes HTML
         run: |
           pip3 install markdown
-          python3 ./Configuration/generate_html_for_sparkle_release.py
+          python3 ./scripts/generate_html_for_sparkle_release.py
           mv latest_changes.html ${{ runner.temp }}/Release/${{ env.PROJNAME }}.html
 
       - name: Checkout releases repo
