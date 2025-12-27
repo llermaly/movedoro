@@ -13,6 +13,10 @@ jobs:
   release:
     name: "Create Release"
     runs-on: macos-15
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
     if: github.event.issue.pull_request && contains(github.event.comment.body, '/release') && github.event.comment.user.login == github.repository_owner
 
     steps:
