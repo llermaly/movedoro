@@ -12,7 +12,7 @@ env:
 jobs:
   release:
     name: "Create Release"
-    runs-on: macos-26-arm64
+    runs-on: macos-15
     if: github.event.issue.pull_request && contains(github.event.comment.body, '/release') && github.event.comment.user.login == github.repository_owner
 
     steps:
@@ -107,6 +107,63 @@ jobs:
             -archivePath ${{ runner.temp }}/${{ env.PROJNAME }}.xcarchive \
             -exportPath ${{ runner.temp }}/Release \
             -exportOptionsPlist scripts/export_options.plist
+
+      - name: Re-sign Sparkle with hardened runtime
+        env:
+          CODE_SIGN_IDENTITY: ${{ secrets.CODE_SIGN_IDENTITY }}
+        run: |
+          APP_PATH="${{ runner.temp }}/Release/${{ env.PROJNAME }}.app"
+
+          # Re-sign Sparkle executables with hardened runtime and timestamp
+          codesign --force --sign "$CODE_SIGN_IDENTITY" --timestamp --options runtime \
+            "$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B/Autoupdate"
+          codesign --force --sign "$CODE_SIGN_IDENTITY" --timestamp --options runtime \
+            "$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B/Updater.app/Contents/MacOS/Updater"
+          codesign --force --sign "$CODE_SIGN_IDENTITY" --timestamp --options runtime \
+            "$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Downloader.xpc/Contents/MacOS/Downloader"
+          codesign --force --sign "$CODE_SIGN_IDENTITY" --timestamp --options runtime \
+            "$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Installer.xpc/Contents/MacOS/Installer"
+
+          # Re-sign containers
+          codesign --force --deep --sign "$CODE_SIGN_IDENTITY" --timestamp --options runtime \
+            "$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B/Updater.app"
+          codesign --force --deep --sign "$CODE_SIGN_IDENTITY" --timestamp --options runtime \
+            "$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Downloader.xpc"
+          codesign --force --deep --sign "$CODE_SIGN_IDENTITY" --timestamp --options runtime \
+            "$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Installer.xpc"
+
+          # Re-sign framework and app
+          codesign --force --sign "$CODE_SIGN_IDENTITY" --timestamp \
+            "$APP_PATH/Contents/Frameworks/Sparkle.framework"
+          codesign --force --sign "$CODE_SIGN_IDENTITY" --timestamp --options runtime \
+            "$APP_PATH"
+
+          # Verify
+          codesign --verify --deep --strict "$APP_PATH"
+
+      - name: Notarize app
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+          TEAM_ID: 8X7FQX6444
+        run: |
+          APP_PATH="${{ runner.temp }}/Release/${{ env.PROJNAME }}.app"
+
+          # Create ZIP for notarization
+          ditto -c -k --keepParent "$APP_PATH" "${{ runner.temp }}/notarize.zip"
+
+          # Submit for notarization
+          xcrun notarytool submit "${{ runner.temp }}/notarize.zip" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$TEAM_ID" \
+            --password "$NOTARY_PASSWORD" \
+            --wait
+
+          # Staple the ticket to the app
+          xcrun stapler staple "$APP_PATH"
+
+          # Cleanup
+          rm -f "${{ runner.temp }}/notarize.zip"
 
       - name: Create ZIP for Sparkle
         run: |
