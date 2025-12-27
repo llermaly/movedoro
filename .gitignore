@@ -1,0 +1,16 @@
+# Build artifacts
+build/
+*.dmg
+
+# Xcode
+DerivedData/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+
+# macOS
+.DS_Store
+
+# Temporary files
+*.swp
+*~
